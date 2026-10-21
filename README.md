@@ -120,7 +120,7 @@ Replays contain player names and SteamIDs. `fwr` only prints SteamIDs in `info -
 
 ## Contributing
 
-Bug reports and pull requests are welcome. The most useful report is a replay that makes `fwr` warn or fail, but only attach it if everyone who played in it is fine with that. Before opening a pull request, run:
+Bug reports and pull requests are welcome. The most useful report is a replay that makes `fwr` warn or fail, so attach it. Before opening a pull request, run:
 
     go vet ./...
     go test -race ./...
