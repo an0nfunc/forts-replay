@@ -116,7 +116,7 @@ The output isn't capped, though: a small crafted file can still produce a timeli
 
 ## Player data
 
-Replays contain player names and SteamIDs. `fwr` only prints SteamIDs in `info --json`. Text output, `dump` and `hex` show zeros instead, and `extract` writes the bytes as they are. Anything in a replay can be faked, names, SteamIDs and the result included, so check before you credit anyone with a win.
+Replays contain player names and SteamIDs. `fwr` only prints SteamIDs in `info --json`. Text output, `dump` and `hex` show zeros instead, and `extract` writes the bytes as they are. A replay is an ordinary file that anyone can edit, including the names, SteamIDs and result. On its own it doesn't prove who played or who won, so a site that ranks players should confirm the result elsewhere, for example against Steam's ranked leaderboards.
 
 ## Contributing
 
