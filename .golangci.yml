@@ -145,7 +145,7 @@ linters:
         text: G115 # synthetic replays built from trusted test values
       - path: example_test\.go$
         linters:
-          - forbidigo # examples print what their Output comment checks
+          - forbidigo # examples print to stdout
 formatters:
   enable:
     - gofmt

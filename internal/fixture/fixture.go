@@ -1,36 +1,43 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package fixture loads the committed sample replays for tests.
+// Package fixture loads the v1.38.2 sample replays of the corpus for tests.
 package fixture
 
 import (
 	"bufio"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/an0nfunc/forts-replay/container"
+	"github.com/an0nfunc/forts-replay/internal/corpus"
 )
 
-// Dir holds the sample replays, relative to the repository root.
-const Dir = "testdata/fixtures/v1.38.2"
+// version is the corpus folder that holds the sample replays.
+const version = "v1.38.2"
 
-// Names lists the sample replays in Dir.
+// Names lists the sample replays: two games against the AI.
 var Names = []string{"abyss-bot-278f.fwr", "abyss-bot-974f.fwr"}
 
-// Probes lists the probe replays in Dir: short games that each isolate a
+// Probes lists the probe replays: short games that each isolate a
 // few kinds of command (testdata/probes).
 var Probes = []string{
 	"probe-delete.fwr", "probe-node.fwr", "probe-doors.fwr", "probe-mine.fwr", "probe-ground.fwr",
 	"probe-repair.fwr", "probe-dblclick.fwr", "probe-downgrade-overdrive.fwr", "probe-move-phantom.fwr",
 }
 
+// Path returns the path of one sample replay, skipping the test without
+// the corpus (corpus.Require). root is the repository root relative to the
+// calling test's package directory.
+func Path(tb testing.TB, root, name string) string {
+	tb.Helper()
+	return corpus.Path(tb, root, version+"/"+name)
+}
+
 // Read returns the header and the decompressed blocks of one sample
-// replay. root is the repository root relative to the calling test's
-// package directory.
+// replay.
 func Read(tb testing.TB, root, name string) (container.Header, [][]byte) {
 	tb.Helper()
-	f, err := os.Open(filepath.Join(root, Dir, name))
+	f, err := os.Open(Path(tb, root, name))
 	if err != nil {
 		tb.Fatal(err)
 	}

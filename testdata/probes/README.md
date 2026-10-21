@@ -10,7 +10,7 @@ A probe is a short game in which the player does one kind of thing, so the recor
 - Note each action in order.
 - The game prunes old replays from `users/<steamid>/replays/`, so copy each one out soon.
 
-A probe under 1 MiB is committed as `testdata/fixtures/<game version>/probe-<name>.fwr`, with its note as `<name>.md` in this directory. The note gives the frame of each action's records, from `fwr dump`.
+A probe goes to the corpus repository as `<game version>/probe-<name>.fwr`, with its note as `<name>.md` in this directory. The note gives the frame of each action's records, from `fwr dump`.
 
 ## Probes
 
@@ -26,7 +26,7 @@ A probe under 1 MiB is committed as `testdata/fixtures/<game version>/probe-<nam
 | downgrade-overdrive | Upgrade and downgrade (0xd5), with the Overdrive commander |
 | move-phantom | Moving a device (0xd2 i32@59), with the Phantom commander |
 
-The commander ability (0xda) takes too long to charge for a fixture under 1 MiB; `TestAbility` in `msg` pins its record. Camera moves, zoom, pause, weapon facing, aim and power keys, laser sights and clicks the game ignores write no record.
+No probe holds a commander ability (0xda) yet; `TestAbility` in `msg` pins its record. Camera moves, zoom, pause, weapon facing, aim and power keys, laser sights and clicks the game ignores write no record.
 
 ## Note template
 

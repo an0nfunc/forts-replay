@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/an0nfunc/forts-replay/internal/corpus"
 	"github.com/an0nfunc/forts-replay/msg"
 	"github.com/an0nfunc/forts-replay/stream"
 )
@@ -56,14 +57,9 @@ type digestPlayer struct {
 // TestCorpusGolden builds every replay of the public corpus, the submodule
 // testdata/corpus, and compares its digest with testdata/corpus.golden.
 func TestCorpusGolden(t *testing.T) {
-	root := filepath.Join("..", "testdata", "corpus")
+	corpus.Require(t, "..")
+	root := filepath.Join("..", corpus.Dir)
 	golden := filepath.Join("..", "testdata", "corpus.golden")
-	if _, err := os.Stat(filepath.Join(root, "README.md")); err != nil {
-		if os.Getenv("CI") != "" {
-			t.Fatal("testdata/corpus is not checked out")
-		}
-		t.Skip("testdata/corpus is not checked out: git submodule update --init")
-	}
 	var got bytes.Buffer
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || filepath.Ext(path) != ".fwr" {

@@ -13,10 +13,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/an0nfunc/forts-replay/internal/corpus"
 	"github.com/an0nfunc/forts-replay/internal/fwrtest"
 )
-
-const fixtures = "../testdata/fixtures/v1.38.2/"
 
 func readAll(t *testing.T, data []byte, lim Limits) (Header, []Block, error) {
 	t.Helper()
@@ -41,7 +40,7 @@ func TestFixtures(t *testing.T) {
 		{"abyss-bot-974f.fwr", 974, []int{79311, 79194, 78532, 78285, 77734, 77814, 76488, 66760}},
 	}
 	for _, c := range cases {
-		data, err := os.ReadFile(fixtures + c.file)
+		data, err := os.ReadFile(corpus.Path(t, "..", "v1.38.2/"+c.file))
 		if err != nil {
 			t.Fatal(err)
 		}

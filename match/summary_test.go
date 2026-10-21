@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
@@ -39,7 +38,7 @@ func buildFile(t *testing.T, data []byte) *Summary {
 
 func fixtureFile(tb testing.TB, name string) []byte {
 	tb.Helper()
-	data, err := os.ReadFile(filepath.Join("..", fixture.Dir, name))
+	data, err := os.ReadFile(fixture.Path(tb, "..", name))
 	if err != nil {
 		tb.Fatal(err)
 	}
