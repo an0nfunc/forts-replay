@@ -122,6 +122,7 @@ Replays contain player names and SteamIDs. `fwr` only prints SteamIDs in `info -
 
 Bug reports and pull requests are welcome. The most useful report is a replay that makes `fwr` warn or fail, so attach it. Replays for the test corpus, especially from other game versions, go to [forts-replay-corpus](https://github.com/an0nfunc/forts-replay-corpus). Before opening a pull request, run:
 
+    git submodule update --init
     go vet ./...
     go test -race ./...
     golangci-lint run
