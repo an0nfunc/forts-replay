@@ -4,30 +4,28 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/an0nfunc/forts-replay.svg)](https://pkg.go.dev/github.com/an0nfunc/forts-replay)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
-A toolbox for replay files (`.fwr`) of [Forts](https://www.earthworkgames.com/forts/), the physics-based RTS by EarthWork Games: a Go library and the `fwr` command.
+A Go library and command line tool for reading replay files (`.fwr`) from [Forts](https://www.earthworkgames.com/forts/), the physics-based RTS by EarthWork Games.
 
-It reads who played on which map, with which commanders, who won and when, and every command each player gave, frame by frame: what they built and where, what they upgraded, repaired and fired. Use it for match histories and stats, build-order analysis, replay archives, or to study the format itself.
+Point it at a replay and you get the map, the players, each side's commander, who won, and everything each player did during the match.
 
-## What it reads
+## What you can do with it
 
-| Part | Contents |
-|---|---|
-| Container | The header and the LZMA-compressed blocks. A damaged or cut-off file still yields everything before the damage. |
-| Header | Game options, map, ranked flag, players with names and SteamIDs, AI forts, both sides' commanders |
-| Result | The winning side and the frame it is recorded at, from the ranked result record or the end-of-match snapshot |
-| Commands | Per player: struts, devices and weapons built, moved and deleted, upgrades, repairs, doors, firing, commander abilities; action counts and a build order |
-| Records | Frame ticks and syncs, input state, script calls, screenshots |
-| Snapshots | The Lua tables in the periodic state snapshots, parsed and never evaluated |
+- Build a match history: map, players, commanders, ranked or not, length and winner.
+- Look at build orders: what each player built, upgraded, moved or tore down, and when.
+- Collect player stats, like how often someone repaired, fired or used their commander ability.
+- Index a pile of replays. A damaged or truncated file still gives you everything up to the point where it breaks.
+- Use it from any language with `fwr info --json`, or from Go directly.
+- Dig into the file format with `fwr dump`, `hex` and `extract`. What we know so far is in [docs/format.md](docs/format.md).
 
-Device and weapon types are numeric IDs: the toolbox ships no name tables or other data from the game's files. A record it does not decode is kept as raw bytes, never dropped. [docs/format.md](docs/format.md) describes the format byte by byte.
+Weapons and devices show up as numeric IDs, not names, because this project doesn't ship any of the game's data. If you want names, you need your own lookup table.
 
-Replays from game v1.38.2 (header version 1383) decode fully. For another header version, the container, the record stream and snapshots still decode, while the header fields and the other record types stay raw, with a warning.
+Only replays from Forts v1.38.2 are fully supported for now. Replays from other versions still open, but with a warning and without the map, players, commanders or commands.
 
 ## Install
 
     go install github.com/an0nfunc/forts-replay/cmd/fwr@latest
 
-As a library: `go get github.com/an0nfunc/forts-replay`. Both need Go 1.27 or later.
+For the library, `go get github.com/an0nfunc/forts-replay`. Both need Go 1.27 or later.
 
 ## The `fwr` command
 
@@ -55,17 +53,17 @@ build      player 1 at 38.96 s: upgrade device 12
 
 | Command | Output |
 |---|---|
-| `fwr info FILE` | Header fields, players, commanders, result, record counts, and commands and build order per player |
-| `fwr info --json FILE` | The same summary as one JSON document, with a stable schema (below) |
-| `fwr dump FILE` | One line per record. `--json` for JSON lines, `--type 0x95,0xe1` and `--block N` to filter, `--lua` for the Lua text of snapshots. |
-| `fwr hex --type 0x95 FILE` | The payloads of one record type in aligned hex columns, for format work |
-| `fwr extract -o DIR FILE` | The header and the decompressed blocks as files |
+| `fwr info FILE` | Summary of the match: header fields, players, commanders, result, record counts, and each player's commands and build order |
+| `fwr info --json FILE` | The same summary as JSON, with a stable schema (see below) |
+| `fwr dump FILE` | One line per record. `--json` gives JSON lines, `--type 0x95,0xe1` and `--block N` filter, `--lua` prints the Lua text of snapshots. |
+| `fwr hex --type 0x95 FILE` | The payloads of one record type as aligned hex columns |
+| `fwr extract -o DIR FILE` | Writes the header and the decompressed blocks to files |
 
-Exit status: 0 on success, including a cut-off replay (with a warning on stderr); 1 when the file cannot be decoded; 2 for usage errors.
+`fwr` exits with 0 on success, also for a truncated replay (it prints a warning), 1 if the file can't be decoded, and 2 on usage errors.
 
 ### JSON output
 
-`fwr info --json` is the interface for programs in any language. It carries `"schema_version": 1`, described by [schema/info-v1.json](schema/info-v1.json):
+If another program consumes the output, use `fwr info --json`. It includes `"schema_version": 1` and follows [schema/info-v1.json](schema/info-v1.json):
 
 ```console
 $ fwr info --json abyss-bot-974f.fwr | jq -c '.commanders, .result, .timelines[0].commands[0]'
@@ -74,7 +72,7 @@ $ fwr info --json abyss-bot-974f.fwr | jq -c '.commanders, .result, .timelines[0
 {"frame":168,"kind":"delete_node","fields":{"player":1,"node":290}}
 ```
 
-A later release can add fields within version 1, so ignore fields you do not know; removing a field or changing its meaning bumps the version. `dump --json` is for exploring and can change between releases (`schema_version` 0).
+Later releases may add fields to version 1, so ignore the ones you don't know. Removing or changing a field means a new schema version. `dump --json` is meant for exploring and can change at any time (`schema_version` 0).
 
 ## Library
 
@@ -96,42 +94,42 @@ if s.Result != nil {
 }
 ```
 
-`ExampleBuild` in `match` is the runnable version. The packages, from the top down:
+A runnable version is `ExampleBuild` in `match`. The packages, highest level first:
 
 | Package | Contents |
 |---|---|
-| `match` | The match summary: players, commanders, result, per-player timelines, action counts and build orders |
-| `msg` | Typed records from a registry of decoders keyed by record type and game version, and frame tracking |
+| `match` | The match summary: players, commanders, result, timelines, action counts and build orders |
+| `msg` | Decodes single records, by record type and game version, and keeps track of the frame |
 | `snapshot` | The Lua sections of state snapshots |
-| `lua` | A parser for the Lua table text in snapshots |
+| `lua` | Parser for the Lua table text in snapshots |
 | `header` | The version-specific header fields |
-| `stream` | The records inside one decompressed block |
-| `container` | The header and the blocks, with size limits |
+| `stream` | Splits a decompressed block into records |
+| `container` | Reads the header and the compressed blocks |
 
-A package imports only those below it, so a tool can stop at any layer: walk the records with `container`, `stream` and `msg` and skip the summary.
+Each package only uses the ones below it, so you can stop at any level. For example, walk the raw records with `container`, `stream` and `msg` and skip the summary.
 
 ## Untrusted replays
 
-Every byte of a replay is treated as hostile. Declared sizes never allocate beyond configurable limits (`container.Limits`, `lua.Limits`, `match.Limits`), no input may panic, and every library package has a fuzz target that CI runs on each change. The toolbox only reads files: it opens no network connections and runs no code from a replay.
+The parser is written to cope with malicious files. Sizes read from a file are capped (`container.Limits`, `lua.Limits`, `match.Limits`), bad input returns an error instead of a panic, and each package is fuzzed in CI. It never uses the network and never runs anything from a replay.
 
-Output still grows with the input: a crafted file of a few kilobytes can produce a timeline of tens of megabytes. A service that runs `fwr` on uploaded files should cap its time, memory and output.
+The output isn't capped, though: a small crafted file can still produce a timeline of many megabytes. If you run `fwr` on uploaded files, limit its time, memory and output size.
 
 ## Player data
 
-Replays hold player names and every player's SteamID. `fwr` prints SteamIDs only in `info --json`: text output, `dump` and `hex` print them as zeros, while `extract` writes the bytes unchanged. Names, SteamIDs and the result come from the file and can be forged, so verify them before crediting a match to anyone.
+Replays contain player names and SteamIDs. `fwr` only prints SteamIDs in `info --json`. Text output, `dump` and `hex` show zeros instead, and `extract` writes the bytes as they are. Anything in a replay can be faked, names, SteamIDs and the result included, so check before you credit anyone with a win.
 
 ## Contributing
 
-Bug reports and pull requests are welcome. A replay that makes `fwr` warn or fail is the most useful report; attach it only if everyone who played in it agrees. Before a pull request:
+Bug reports and pull requests are welcome. The most useful report is a replay that makes `fwr` warn or fail, but only attach it if everyone who played in it is fine with that. Before opening a pull request, run:
 
     go vet ./...
     go test -race ./...
     golangci-lint run
 
-[AGENTS.md](AGENTS.md) has the layout and the rules, such as how fixtures are recorded and that no game data goes into the repository.
+[AGENTS.md](AGENTS.md) covers the layout and the project rules, for example how fixtures are recorded and why no game data goes into the repository.
 
-## Licence
+## License
 
-AGPL-3.0-or-later, see [LICENSE](LICENSE). The replays under `testdata/fixtures` are written by the game and are not covered by it.
+AGPL-3.0-or-later, see [LICENSE](LICENSE). The replays in `testdata/fixtures` are written by the game and aren't covered by it.
 
-Forts is a trademark of EarthWork Games. This is an independent project, not affiliated with, endorsed or sponsored by EarthWork Games.
+Forts is a trademark of EarthWork Games. This project is not affiliated with or endorsed by EarthWork Games.
