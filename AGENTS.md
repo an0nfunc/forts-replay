@@ -21,10 +21,10 @@ Dependencies point downward only:
 
 ## Checks
 
+    git submodule update --init                  # the corpus; without it, tests that read replays skip
     go vet ./...
     go test -race ./...
     golangci-lint run
-    git submodule update --init                  # the corpus; without it, tests that read replays skip
     go test ./cmd/fwr -run TestGolden -update    # regenerate golden output, then review the diff
     go test ./match -run TestCorpusGolden -update    # after a corpus bump or a decoding change, then review the diff
     go test ./<pkg> -run '^$' -fuzz '^Fuzz<Name>$' -fuzztime 30s -fuzzminimizetime 0
@@ -37,7 +37,6 @@ Dependencies point downward only:
 - A new message decoder is registered in `msg.DefaultRegistry` with the game versions it covers. Packages hold no mutable package-level state.
 - `fwr info --json` carries `schema_version` 1, described by `schema/info-v1.json`. Adding a field, to the output and the schema together, keeps the version; removing one or changing its meaning bumps it. `TestInfoSchema` checks the output against a closed copy of the schema. `dump --json` carries 0 (unstable).
 - `docs/format.md` records format knowledge only: no disassembly, game code or addresses. The repository ships no EarthWork game data. The corpus replays' snapshots hold the game's AI script tables, so goldens and tests print synthetic snapshots (`fwrtest.Snapshot`), never the replays' Lua text.
-- The parser decodes replay files and never contacts EarthWork's servers. Reading any other game file, for example to name devices, needs @an0nfunc's approval first.
 - Test replays live only in the corpus repository; tests skip without the submodule and fail without it in CI (`FWR_REQUIRE_CORPUS`). A corpus change lands here as a submodule bump that Renovate proposes; `TestCorpusGolden` fails on it until `testdata/corpus.golden`, which holds no player names or SteamIDs, is regenerated on that branch and its diff reviewed. Unused bytes, such as those after a name's NUL, hold leftover game memory: check a replay's strings before adding it to the corpus.
 - Replays hold player names, per-side commander save-names, and every player's SteamID (the header's player entries; ranked result records (0xbb) and some 0x8d records also hold them in clear). SteamIDs appear decoded only in `info --json`, never in text output, warnings or `dump` fields. `dump --json` and `hex` print them as zeros: bytes 32 to 47 of a 0xbb record, 75 to 90 of a 0x8d record, and any 8 bytes whose upper four are `01 00 10 01`. `extract` writes the bytes unchanged. Files in this repository, the corpus submodule aside, hold @an0nfunc's own name and synthetic values only.
 - Third-party dependencies: `github.com/ulikunitz/xz`, and in tests only `github.com/santhosh-tekuri/jsonschema/v6` (depguard keeps it there). Ask before adding another.
