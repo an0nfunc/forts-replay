@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -58,18 +57,10 @@ type digestPlayer struct {
 // testdata/corpus, and compares its digest with testdata/corpus.golden.
 func TestCorpusGolden(t *testing.T) {
 	corpus.Require(t, "..")
-	root := filepath.Join("..", corpus.Dir)
 	golden := filepath.Join("..", "testdata", "corpus.golden")
 	var got bytes.Buffer
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || filepath.Ext(path) != ".fwr" {
-			return err
-		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		line, err := json.Marshal(digest(t, path, filepath.ToSlash(rel)))
+	err := corpus.Walk("..", func(path, rel string) error {
+		line, err := json.Marshal(digest(t, path, rel))
 		if err != nil {
 			return err
 		}
