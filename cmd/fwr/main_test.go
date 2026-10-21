@@ -25,10 +25,22 @@ import (
 
 var update = flag.Bool("update", false, "rewrite golden files")
 
-const (
-	f278 = "../../testdata/fixtures/v1.38.2/abyss-bot-278f.fwr"
-	f974 = "../../testdata/fixtures/v1.38.2/abyss-bot-974f.fwr"
-)
+// fixturePath returns the path of one sample replay.
+func fixturePath(tb testing.TB, name string) string {
+	tb.Helper()
+	return fixture.Path(tb, "../..", name)
+}
+
+// f278 and f974 return the paths of the two sample games.
+func f278(tb testing.TB) string {
+	tb.Helper()
+	return fixturePath(tb, "abyss-bot-278f.fwr")
+}
+
+func f974(tb testing.TB) string {
+	tb.Helper()
+	return fixturePath(tb, "abyss-bot-974f.fwr")
+}
 
 func runCmd(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
@@ -42,26 +54,25 @@ func TestGolden(t *testing.T) {
 		name string
 		args []string
 	}
-	fixturePath := func(name string) string { return filepath.Join("../..", fixture.Dir, name) }
 	luaFile := write(t, t.TempDir(), "lua.fwr", fwrtest.File(fwrtest.Header{Version: 1383, Frames: 2}, fwrtest.Record(luaSnapshot(), true)))
 	cases := []goldenCase{
 		// The fixtures' snapshots hold the game's AI script tables, so
 		// goldens print a synthetic snapshot instead.
-		{"dump-278f.jsonl", []string{"dump", "--json", "--type", "0x92,0x93,0x95,0x97,0xbe,0xc0,0xe6", f278}},
-		{"dump-278f.txt", []string{"dump", f278}},
+		{"dump-278f.jsonl", []string{"dump", "--json", "--type", "0x92,0x93,0x95,0x97,0xbe,0xc0,0xe6", f278(t)}},
+		{"dump-278f.txt", []string{"dump", f278(t)}},
 		{"dump-lua.txt", []string{"dump", "--lua", luaFile}},
 		{"dump-lua.jsonl", []string{"dump", "--json", luaFile}},
-		{"hex-278f-0x95.txt", []string{"hex", "--type", "0x95", f278}},
-		{"info-278f.txt", []string{"info", f278}},
-		{"info-974f.txt", []string{"info", f974}},
-		{"info-278f.json", []string{"info", "--json", f278}},
-		{"info-974f.json", []string{"info", "--json", f974}},
-		{"info-probe-dblclick.json", []string{"info", "--json", fixturePath("probe-dblclick.fwr")}},
-		{"dump-probe-delete.jsonl", []string{"dump", "--json", "--type", "0xcb,0xcd,0xce,0xd2,0xd6", fixturePath("probe-delete.fwr")}},
-		{"dump-probe-dblclick-fire.txt", []string{"dump", "--type", "0xc5,0xc6,0xc7,0xca", fixturePath("probe-dblclick.fwr")}},
+		{"hex-278f-0x95.txt", []string{"hex", "--type", "0x95", f278(t)}},
+		{"info-278f.txt", []string{"info", f278(t)}},
+		{"info-974f.txt", []string{"info", f974(t)}},
+		{"info-278f.json", []string{"info", "--json", f278(t)}},
+		{"info-974f.json", []string{"info", "--json", f974(t)}},
+		{"info-probe-dblclick.json", []string{"info", "--json", fixturePath(t, "probe-dblclick.fwr")}},
+		{"dump-probe-delete.jsonl", []string{"dump", "--json", "--type", "0xcb,0xcd,0xce,0xd2,0xd6", fixturePath(t, "probe-delete.fwr")}},
+		{"dump-probe-dblclick-fire.txt", []string{"dump", "--type", "0xc5,0xc6,0xc7,0xca", fixturePath(t, "probe-dblclick.fwr")}},
 	}
 	for _, name := range fixture.Probes {
-		cases = append(cases, goldenCase{"info-" + strings.TrimSuffix(name, ".fwr") + ".txt", []string{"info", fixturePath(name)}})
+		cases = append(cases, goldenCase{"info-" + strings.TrimSuffix(name, ".fwr") + ".txt", []string{"info", fixturePath(t, name)}})
 	}
 	for _, c := range cases {
 		code, out, errOut := runCmd(t, c.args...)
@@ -117,7 +128,7 @@ func jsonLines(t *testing.T, out string) []map[string]any {
 }
 
 func TestDumpJSON(t *testing.T) {
-	code, out, _ := runCmd(t, "dump", "--json", f278)
+	code, out, _ := runCmd(t, "dump", "--json", f278(t))
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
@@ -193,7 +204,7 @@ func TestDumpScreenshot(t *testing.T) {
 }
 
 func TestTruncatedFile(t *testing.T) {
-	data, err := os.ReadFile(f974)
+	data, err := os.ReadFile(f974(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +280,7 @@ func matchFile(t *testing.T, dir string, ranked bool) string {
 
 func TestInfo(t *testing.T) {
 	dir := t.TempDir()
-	orig, err := os.ReadFile(f278)
+	orig, err := os.ReadFile(f278(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +303,7 @@ func TestInfo(t *testing.T) {
 		out, notOut string // substrings of stdout
 		errOut      string // substring of stderr; "" means stderr stays empty
 	}{
-		{"fixture", f278, "syncs      139, last at frame 278", "", ""},
+		{"fixture", f278(t), "syncs      139, last at frame 278", "", ""},
 		{"other version", write(t, dir, "v7.fwr", fwrtest.File(fwrtest.Header{Version: 7, Frames: 4}, fwrtest.Record([]byte{0xbe}, true))), "version    7", "options", "header fields not decoded for version 7"},
 		{"bad header", write(t, dir, "bad.fwr", badHeader), "records    392", "options", "warning: header: corrupt"},
 		{"frame mismatch", write(t, dir, "frames.fwr", moreFrames), "frames     300 (12.00 s)", "", "header has 300 frames, last sync is frame 278"},
@@ -353,7 +364,7 @@ func TestInfoJSON(t *testing.T) {
 func TestInfoSchema(t *testing.T) {
 	open, strict := compileSchema(t, false), compileSchema(t, true)
 	dir := t.TempDir()
-	cut, err := os.ReadFile(f974)
+	cut, err := os.ReadFile(f974(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -363,7 +374,7 @@ func TestInfoSchema(t *testing.T) {
 		write(t, dir, "v7.fwr", fwrtest.File(fwrtest.Header{Version: 7, Frames: 4}, fwrtest.Record([]byte{0xbe}, true))),
 	}
 	for _, name := range slices.Concat(fixture.Names, fixture.Probes) {
-		files = append(files, filepath.Join("../..", fixture.Dir, name))
+		files = append(files, fixturePath(t, name))
 	}
 	validate := func(sch *jsonschema.Schema, doc string) error {
 		v, err := jsonschema.UnmarshalJSON(strings.NewReader(doc))
@@ -603,8 +614,11 @@ func TestNotAReplay(t *testing.T) {
 	}
 }
 
+// TestUsage names a file that does not exist: usage errors come before the
+// file is opened.
 func TestUsage(t *testing.T) {
-	for _, args := range [][]string{nil, {"nope"}, {"dump"}, {"dump", "--type", "zz", f278}, {"hex", f278}, {"extract", f278}, {"info"}, {"info", f278, f974}} {
+	const f = "missing.fwr"
+	for _, args := range [][]string{nil, {"nope"}, {"dump"}, {"dump", "--type", "zz", f}, {"hex", f}, {"extract", f}, {"info"}, {"info", f, f}} {
 		if code, _, _ := runCmd(t, args...); code != 2 {
 			t.Errorf("%v: exit %d, want 2", args, code)
 		}
@@ -613,7 +627,7 @@ func TestUsage(t *testing.T) {
 
 func TestExtract(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "out")
-	if code, out, errOut := runCmd(t, "extract", "-o", dir, f278); code != 0 || !strings.Contains(out, "wrote 3 blocks") {
+	if code, out, errOut := runCmd(t, "extract", "-o", dir, f278(t)); code != 0 || !strings.Contains(out, "wrote 3 blocks") {
 		t.Fatalf("exit %d %q %q", code, out, errOut)
 	}
 	want := map[string]int64{"header.bin": 1943, "block000.bin": 78358, "block001.bin": 79167, "block002.bin": 65940}
@@ -656,7 +670,7 @@ func TestExtractRefusesExisting(t *testing.T) {
 	if err := os.Symlink(victim, filepath.Join(dir, "header.bin")); err != nil {
 		t.Fatal(err)
 	}
-	if code, _, _ := runCmd(t, "extract", "-o", dir, f278); code != 1 {
+	if code, _, _ := runCmd(t, "extract", "-o", dir, f278(t)); code != 1 {
 		t.Errorf("exit %d, want 1", code)
 	}
 	if got, err := os.ReadFile(victim); err != nil || string(got) != "keep" {

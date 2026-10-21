@@ -7,12 +7,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/an0nfunc/forts-replay/internal/corpus"
 	"github.com/an0nfunc/forts-replay/internal/fwrtest"
 )
 
 func FuzzReader(f *testing.F) {
 	for _, name := range []string{"abyss-bot-278f.fwr", "abyss-bot-974f.fwr"} {
-		data, err := os.ReadFile(fixtures + name)
+		data, err := os.ReadFile(corpus.Path(f, "..", "v1.38.2/"+name))
 		if err != nil {
 			f.Fatal(err)
 		}

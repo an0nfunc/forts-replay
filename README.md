@@ -126,10 +126,10 @@ Bug reports and pull requests are welcome. The most useful report is a replay th
     go test -race ./...
     golangci-lint run
 
-[AGENTS.md](AGENTS.md) covers the layout and the project rules, for example how fixtures are recorded and why no game data goes into the repository.
+[AGENTS.md](AGENTS.md) covers the layout and the project rules, for example how test replays are recorded and why no game data goes into the repository.
 
 ## License
 
-AGPL-3.0-or-later, see [LICENSE](LICENSE). The replays in `testdata/fixtures` are written by the game and aren't covered by it.
+AGPL-3.0-or-later, see [LICENSE](LICENSE).
 
 Forts is a trademark of EarthWork Games. This project is not affiliated with or endorsed by EarthWork Games.

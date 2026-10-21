@@ -11,8 +11,9 @@ import (
 	"github.com/an0nfunc/forts-replay/match"
 )
 
+//nolint:testableexamples // an example cannot skip without the corpus; TestBuildFixtures and the fwr info goldens pin its values
 func ExampleBuild() {
-	f, err := os.Open("../testdata/fixtures/v1.38.2/abyss-bot-974f.fwr")
+	f, err := os.Open("../testdata/corpus/v1.38.2/abyss-bot-974f.fwr")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -34,11 +35,4 @@ func ExampleBuild() {
 	for _, tl := range s.Timelines {
 		fmt.Printf("player %d gave %d commands\n", tl.ID, len(tl.Commands))
 	}
-	// Output:
-	// maps/Abyss/Abyss.fwe, 39 s
-	// player 1, side 1: "random🐧"
-	// side 1 commander: commander-fb-fulminator
-	// side 2 commander: commander-da-builder
-	// side 2 won at 35.52 s
-	// player 1 gave 14 commands
 }
