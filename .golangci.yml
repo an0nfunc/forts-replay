@@ -1,0 +1,152 @@
+version: "2"
+linters:
+  # Everything on, then switch off what does not fit this repository.
+  default: all
+  disable:
+    # Style opinions that fight the way this code is written.
+    - exhaustruct
+    - exhaustruct_v5
+    - lll # gofmt owns layout
+    - nlreturn
+    - noinlineerr # `if err := f(); err != nil` is idiomatic Go
+    - varnamelen
+    - wsl
+    - wsl_v5
+
+    # Complexity metrics that overlap with gocyclo, which stays on.
+    - cyclop
+    - funlen
+    - gocognit
+
+    # Offsets and sizes of the replay format are its documented layout.
+    - mnd
+
+    # Error-handling rules that add ceremony without catching bugs here.
+    - err113
+    - wrapcheck
+
+    # Decoders return the msg.Message interface by design.
+    - ireturn
+
+    # Tests are white-box (they reach the unexported limits) and fast.
+    - paralleltest
+    - testpackage
+
+    - prealloc # micro-optimisation noise
+    - gomodguard # deprecated; gomodguard_v2 stays on
+
+  settings:
+    depguard:
+      rules:
+        network:
+          deny:
+            - pkg: net
+              desc: the parser never contacts the network
+            - pkg: crypto/tls
+              desc: the parser never contacts the network
+            - pkg: log/syslog
+              desc: the parser never contacts the network
+            - pkg: os/exec
+              desc: the parser runs no other code
+            - pkg: plugin
+              desc: the parser runs no other code
+        leaves:
+          files:
+            - "**/container/*.go"
+            - "**/stream/*.go"
+            - "**/lua/*.go"
+            - "**/header/*.go"
+            - "!$test"
+          deny:
+            - pkg: github.com/an0nfunc/forts-replay
+              desc: these packages import no other package of this module
+        msg:
+          files:
+            - "**/msg/*.go"
+            - "!$test"
+          deny:
+            - pkg: github.com/an0nfunc/forts-replay/container
+              desc: msg reads records through stream
+            - pkg: github.com/an0nfunc/forts-replay/lua
+              desc: snapshot parses Lua; msg keeps the raw payload
+            - pkg: github.com/an0nfunc/forts-replay/snapshot
+              desc: dependencies point downward only
+            - pkg: github.com/an0nfunc/forts-replay/header
+              desc: dependencies point downward only
+            - pkg: github.com/an0nfunc/forts-replay/match
+              desc: dependencies point downward only
+            - pkg: github.com/an0nfunc/forts-replay/internal
+              desc: internal packages are test helpers
+        snapshot:
+          files:
+            - "**/snapshot/*.go"
+            - "!$test"
+          deny:
+            - pkg: github.com/an0nfunc/forts-replay/container
+              desc: snapshot only parses a payload
+            - pkg: github.com/an0nfunc/forts-replay/stream
+              desc: snapshot only parses a payload
+            - pkg: github.com/an0nfunc/forts-replay/msg
+              desc: dependencies point downward only
+            - pkg: github.com/an0nfunc/forts-replay/header
+              desc: dependencies point downward only
+            - pkg: github.com/an0nfunc/forts-replay/match
+              desc: dependencies point downward only
+            - pkg: github.com/an0nfunc/forts-replay/internal
+              desc: internal packages are test helpers
+        match:
+          files:
+            - "**/match/*.go"
+            - "!$test"
+          deny:
+            - pkg: github.com/an0nfunc/forts-replay/internal
+              desc: internal packages are test helpers
+        tests-only:
+          files:
+            - "$all"
+            - "!$test"
+          deny:
+            - pkg: github.com/santhosh-tekuri/jsonschema
+              desc: the schema validator is a test dependency
+    exhaustive:
+      default-signifies-exhaustive: true
+    gosec:
+      excludes:
+        - G104 # errcheck covers unchecked errors
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # field order follows the format, not padding
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    tagliatelle:
+      case:
+        rules:
+          json: snake # dump --json is snake_case
+  exclusions:
+    presets:
+      - std-error-handling # unchecked Close, Flush and fmt.Fprint* to stderr
+    rules:
+      - path: _test\.go$
+        linters:
+          - forcetypeassert
+          - goconst
+      - path: (_test\.go|internal/fixture/fixture\.go)$
+        linters:
+          - gochecknoglobals # the -update flag and the list of sample files
+      - path: (cmd/fwr/|internal/fixture/|_test\.go$)
+        linters:
+          - gosec
+        text: G304 # the CLI and the test helpers open files the user or the test names
+      - path: (internal/fwrtest/|_test\.go$)
+        linters:
+          - gosec
+        text: G115 # synthetic replays built from trusted test values
+      - path: example_test\.go$
+        linters:
+          - forbidigo # examples print what their Output comment checks
+formatters:
+  enable:
+    - gofmt
+    - goimports

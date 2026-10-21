@@ -1,0 +1,15 @@
+version    1383
+frames     974 (38.96 s)
+ranked     no
+options    "repair_station" "weapon_pack" "dlc1_portal_skirmish" "dlc1_weapons_skirmish" "dlc3"
+map        "maps/Abyss/Abyss.fwe"
+player     1: slot 0, team 1, side 1, "random🐧", recorder
+ai         team 102, side 2
+commander  side 1, "commander-fb-fulminator"
+commander  side 2, "commander-da-builder"
+result     side 2 won at frame 888 (snapshot)
+blocks     8
+records    1283
+types      0x92=72 0x93=2 0x95=178 0x97=34 0xbe=487 0xc0=487 0xcc=4 0xce=10 0xe1=8 0xe6=1
+syncs      487, last at frame 974
+commands   player 1: delete_link=10 delete_node=4

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Europe/Berlin",
+  "schedule": [
+    "* 8-11 * * 5"
+  ],
+  "prHourlyLimit": 0,
+  "semanticCommits": "enabled",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "schedule": [
+      "at any time"
+    ]
+  },
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "automergeStrategy": "rebase",
+  "customManagers": [
+    {
+      "description": "The golangci-lint version the CI lint job installs.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/ci\\.yml$/"
+      ],
+      "matchStrings": [
+        "golangci-lint-action@\\S+[^\\n]*\\n\\s+with:\\n\\s+version: (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "golangci/golangci-lint",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Hold a release back for three days, long enough for a broken or compromised one to be pulled before it is proposed or merged. A release without a timestamp is held too.",
+      "matchManagers": [
+        "gomod",
+        "github-actions",
+        "custom.regex"
+      ],
+      "minimumReleaseAge": "3 days",
+      "minimumReleaseAgeBehaviour": "timestamp-required"
+    },
+    {
+      "description": "The go directive is the oldest Go a consumer of this library needs; it is raised by hand.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "golang"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Patch updates of Go modules merge once CI passes. Actions updates stay manual: a new action runs in the CI that would approve it, and the digest pins exist to catch a moved tag.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "automerge": true
+    }
+  ]
+}

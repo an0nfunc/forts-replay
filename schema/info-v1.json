@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "fwr info --json, schema version 1",
+  "description": "Summary of one Forts replay. A later release can add fields without a new schema version, so objects are open and consumers ignore fields they do not know; removing a field or changing its meaning bumps the version. Optional fields are absent when empty, and arrays that are present are never null. Every field comes from the replay file, which whoever supplies it controls: treat names as untrusted text, and steam_id and result as unverified claims (for a ranked match, check them against the Steam leaderboard).",
+  "type": "object",
+  "required": ["schema_version", "format_version", "frames", "duration", "ranked", "blocks", "records", "truncated", "warnings"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "format_version": {"$ref": "#/$defs/u32", "description": "Header version: 1383 in game v1.38.2."},
+    "frames": {"$ref": "#/$defs/u32", "description": "Physics frames at 25 per second."},
+    "duration": {"type": "number", "minimum": 0, "description": "Seconds: frames / 25."},
+    "ranked": {"type": "boolean"},
+    "map": {"type": "string", "minLength": 1, "maxLength": 1024, "description": "The map's .fwe file."},
+    "options": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "string", "maxLength": 1024}},
+    "players": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/player"}, "description": "The header's player table, spectators included."},
+    "ai": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/ai"}, "description": "Forts the AI plays."},
+    "commanders": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"$ref": "#/$defs/commander"}, "description": "Each side's commander, by the game's save-name, such as commander-fb-fulminator, reported verbatim. A side without a commander is left out."},
+    "result": {"$ref": "#/$defs/result"},
+    "timelines": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/timeline"}, "description": "Commands per player, by player ID."},
+    "blocks": {"type": "integer", "minimum": 1},
+    "records": {"type": "integer", "minimum": 0},
+    "truncated": {"type": "boolean", "description": "Decoding stopped early; the rest is what decoded before."},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "u32": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+    "i32": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647},
+    "frame": {"type": "integer", "minimum": -1, "description": "Frame of the step the record was written in; -1 before the first."},
+    "side": {"type": "integer", "minimum": 0, "maximum": 99, "description": "Team ID modulo 100: 1 or 2, 0 for a spectator."},
+    "kind": {"enum": ["place", "strut", "link", "delete_link", "delete_node", "scrap", "upgrade", "repair", "door", "fire", "fire_blocked", "ability"]},
+    "player": {
+      "type": "object",
+      "required": ["id", "slot", "team", "side"],
+      "properties": {
+        "id": {"$ref": "#/$defs/u32", "description": "The player field of the player's records."},
+        "slot": {"$ref": "#/$defs/u32"},
+        "team": {"$ref": "#/$defs/i32", "description": "Side + 100 × fort, or plain 1 and 2; -3 for a spectator."},
+        "side": {"$ref": "#/$defs/side"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 15, "description": "Player-chosen, up to 15 UTF-16 code units, and may hold control, format and bidi characters, which the JSON escapes. Absent for the opponent in a ranked replay, whose header holds a generic word instead."},
+        "steam_id": {"type": "string", "pattern": "^[1-9][0-9]{0,19}$", "description": "SteamID64 in decimal, from the player's header entry, for every player whose entry holds one (not in single-player games)."},
+        "recorder": {"const": true, "description": "The client that recorded the replay."}
+      }
+    },
+    "ai": {
+      "type": "object",
+      "required": ["team", "side"],
+      "properties": {"team": {"$ref": "#/$defs/i32"}, "side": {"$ref": "#/$defs/side"}}
+    },
+    "commander": {
+      "type": "object",
+      "required": ["side", "name"],
+      "properties": {"side": {"enum": [1, 2]}, "name": {"type": "string", "minLength": 1, "maxLength": 49}}
+    },
+    "result": {
+      "type": "object",
+      "required": ["winner", "frame", "source"],
+      "properties": {
+        "winner": {"enum": [1, 2], "description": "Winning side."},
+        "frame": {"$ref": "#/$defs/frame"},
+        "source": {"enum": ["ranked", "snapshot"], "description": "ranked: the game's ranked result record, exact to the frame. snapshot: the first state snapshot after the end, up to 5 seconds late."}
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "required": ["player", "counts", "commands"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"},
+        "counts": {"type": "object", "propertyNames": {"$ref": "#/$defs/kind"}, "additionalProperties": {"type": "integer", "minimum": 1}, "description": "Actions per kind, including those past the timeline limit."},
+        "commands": {"type": "array", "items": {"$ref": "#/$defs/entry"}, "description": "In replay order, up to the timeline limit."}
+      }
+    },
+    "entry": {
+      "type": "object",
+      "required": ["frame", "kind", "fields"],
+      "properties": {"frame": {"$ref": "#/$defs/frame"}, "kind": {"$ref": "#/$defs/kind"}, "fields": {"type": "object"}},
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "place"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/place"}}}},
+        {"if": {"properties": {"kind": {"const": "strut"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/strut"}}}},
+        {"if": {"properties": {"kind": {"const": "link"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/link"}}}},
+        {"if": {"properties": {"kind": {"const": "delete_link"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/two_nodes"}}}},
+        {"if": {"properties": {"kind": {"const": "delete_node"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/node"}}}},
+        {"if": {"properties": {"kind": {"const": "scrap"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/device"}}}},
+        {"if": {"properties": {"kind": {"const": "upgrade"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/device"}}}},
+        {"if": {"properties": {"kind": {"const": "repair"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/node"}}}},
+        {"if": {"properties": {"kind": {"const": "door"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/door"}}}},
+        {"if": {"properties": {"kind": {"const": "fire"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/fire"}}}},
+        {"if": {"properties": {"kind": {"const": "fire_blocked"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/fire_blocked"}}}},
+        {"if": {"properties": {"kind": {"const": "ability"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/ability"}}}}
+      ]
+    },
+    "place": {
+      "type": "object",
+      "required": ["player", "t", "type_id", "node_a", "node_b", "x", "y", "aim", "moved_device"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "t": {"type": "number"}, "type_id": {"$ref": "#/$defs/u32"},
+        "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"},
+        "x": {"type": "number"}, "y": {"type": "number"}, "aim": {"type": "number"},
+        "moved_device": {"$ref": "#/$defs/i32"}
+      }
+    },
+    "strut": {
+      "type": "object",
+      "required": ["player", "serial", "x", "y", "dx", "dy", "source", "material", "first", "anchored"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "serial": {"$ref": "#/$defs/u32"},
+        "x": {"type": "number"}, "y": {"type": "number"}, "dx": {"type": "number"}, "dy": {"type": "number"},
+        "source": {"$ref": "#/$defs/u32"}, "material": {"$ref": "#/$defs/u32"},
+        "first": {"type": "boolean"}, "anchored": {"type": "boolean"}
+      }
+    },
+    "link": {
+      "type": "object",
+      "required": ["player", "node_a", "node_b", "material", "first"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"},
+        "material": {"$ref": "#/$defs/u32"}, "first": {"type": "boolean"}
+      }
+    },
+    "two_nodes": {
+      "type": "object",
+      "required": ["player", "node_a", "node_b"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"}}
+    },
+    "node": {
+      "type": "object",
+      "required": ["player", "node"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "node": {"$ref": "#/$defs/u32"}}
+    },
+    "device": {
+      "type": "object",
+      "required": ["player", "device"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "device": {"$ref": "#/$defs/u32"}}
+    },
+    "door": {
+      "type": "object",
+      "required": ["player", "state", "node_a", "node_b"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "state": {"$ref": "#/$defs/u32"},
+        "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"}
+      }
+    },
+    "fire": {
+      "type": "object",
+      "required": ["player", "device", "angle", "power", "immediate"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "device": {"$ref": "#/$defs/u32"},
+        "angle": {"type": "number"}, "power": {"type": "number"}, "immediate": {"type": "boolean"}
+      }
+    },
+    "fire_blocked": {
+      "type": "object",
+      "required": ["player", "device", "angle"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "device": {"$ref": "#/$defs/u32"}, "angle": {"type": "number"}}
+    },
+    "ability": {
+      "type": "object",
+      "required": ["player"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}}
+    }
+  }
+}

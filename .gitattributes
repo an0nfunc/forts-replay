@@ -1,0 +1,2 @@
+*.fwr binary
+*.golden -text

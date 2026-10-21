@@ -1,0 +1,7 @@
+blk=0 off=0x00000 frame=- type=0xe1 len=283 kf snapshot sections=3
+  section 0 name="" off=0x5 len=84
+data = { gameFrame = 1, gameTime = 0.04, DoorsOpened = false, ScheduledCalls = {}, }
+  section 1 name="scripts/test.lua" off=0x75 len=141
+data = { Name = "a name", List = { 1, 2.5, -3, }, Nested = { Inner = { Flag = true, Big = inf, }, }, [7] = "seven", ["key with space"] = 0, }
+  section 2 name="" off=0x106 len=21 err=lua: syntax error: line 1: unexpected ","
+data = { broken = , }

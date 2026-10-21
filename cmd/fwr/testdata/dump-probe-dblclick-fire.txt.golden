@@ -1,0 +1,10 @@
+blk=8 off=0x0b27d frame=1128 type=0xc5 len=45 fire_start {"player":1,"device":10}
+blk=8 off=0x0b428 frame=1130 type=0xc7 len=33 fire_blocked {"player":1,"device":10,"angle":6.2824974}
+blk=9 off=0x08e7d frame=1168 type=0xc6 len=28 fire_end {"player":1,"device":10}
+blk=10 off=0x0a551 frame=1348 type=0xc5 len=45 fire_start {"player":1,"device":11}
+blk=10 off=0x0a693 frame=1350 type=0xca len=51 fire {"player":1,"device":11,"angle":0.002551837,"power":0.5,"immediate":true}
+blk=10 off=0x0b710 frame=1388 type=0xc6 len=28 fire_end {"player":1,"device":11}
+blk=12 off=0x099d3 frame=1560 type=0xc5 len=45 fire_start {"player":1,"device":12}
+blk=12 off=0x09b15 frame=1562 type=0xca len=51 fire {"player":1,"device":12,"angle":1.138467,"power":0.5,"immediate":true}
+blk=12 off=0x0ab29 frame=1600 type=0xc6 len=28 fire_end {"player":1,"device":12}
+blk=18 off=0x09820 frame=2314 type=0xca len=51 fire {"player":1,"device":12,"angle":0.8909033,"power":0.35223716,"immediate":false}

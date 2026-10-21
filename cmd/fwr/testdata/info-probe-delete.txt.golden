@@ -1,0 +1,13 @@
+version    1383
+frames     1188 (47.52 s)
+ranked     no
+options    "repair_station" "unlimited-energy" "unlimited-metal" "weapon_pack" "dlc1_portal_skirmish" "dlc1_weapons_skirmish" "dlc3" "fast-build" "unlock-all-weapons"
+map        "maps/Abyss/Abyss.fwe"
+player     1: slot 0, team 1, side 1, "random🐧", recorder
+result     not recorded
+blocks     10
+records    1357
+types      0x92=52 0x93=2 0x95=79 0x97=19 0xbe=594 0xc0=594 0xcb=2 0xcd=2 0xce=1 0xd2=1 0xd6=1 0xe1=10
+syncs      594, last at frame 1188
+commands   player 1: delete_link=1 link=1 place=1 scrap=1 strut=1
+build      player 1 at 21.60 s: place type 37

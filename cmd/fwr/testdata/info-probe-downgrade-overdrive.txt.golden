@@ -1,0 +1,18 @@
+version    1383
+frames     1304 (52.16 s)
+ranked     no
+options    "repair_station" "unlimited-energy" "unlimited-metal" "weapon_pack" "dlc1_portal_skirmish" "dlc1_weapons_skirmish" "dlc3" "fast-build" "rapidfire" "unlock-all-weapons"
+map        "maps/Abyss/Abyss.fwe"
+player     1: slot 0, team 1, side 1, "random🐧", recorder
+ai         team 102, side 2
+commander  side 1, "commander-da-overclocker"
+commander  side 2, "commander-ee-heavy-weapons"
+result     not recorded
+blocks     11
+records    1491
+types      0x92=104 0x93=2 0x95=50 0x97=16 0xbe=652 0xc0=652 0xd2=1 0xd5=2 0xe1=11 0xe6=1
+syncs      652, last at frame 1304
+commands   player 1: place=1 upgrade=2
+build      player 1 at 19.28 s: place type 0
+build      player 1 at 28.64 s: upgrade device 10
+build      player 1 at 38.96 s: upgrade device 12

@@ -1,0 +1,392 @@
+blk=0 off=0x00000 frame=- type=0xe1 len=62138 kf snapshot sections=7
+blk=0 off=0x0f2c6 frame=- type=0xbe len=28 tick target=4
+blk=0 off=0x0f2ea frame=2 type=0xc0 len=164 sync
+blk=0 off=0x0f396 frame=2 type=0x95 len=37 pointer {"player":1,"x":45.78174,"y":519.9866}
+blk=0 off=0x0f3c3 frame=2 type=0x92 len=53 hover {"player":1,"node_a":0,"node_b":0,"device":0,"terrain":65535,"hover_kind":0,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=0 off=0x0f400 frame=2 type=0x93 len=63 raw 9300000000000000000000000000000000930000010000000100000000000000...
+blk=0 off=0x0f447 frame=2 type=0xbe len=28 tick target=6
+blk=0 off=0x0f46b frame=4 type=0xc0 len=164 sync
+blk=0 off=0x0f517 frame=4 type=0x95 len=37 pointer {"player":1,"x":45.78174,"y":519.9866}
+blk=0 off=0x0f544 frame=4 type=0x92 len=53 hover {"player":1,"node_a":0,"node_b":0,"device":0,"terrain":65535,"hover_kind":0,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=0 off=0x0f581 frame=4 type=0x93 len=63 raw 9300000000000000000000000000000000930000010000000100000000000000...
+blk=0 off=0x0f5c8 frame=4 type=0xbe len=28 tick target=8
+blk=0 off=0x0f5ec frame=6 type=0xc0 len=164 sync
+blk=0 off=0x0f698 frame=6 type=0xbe len=28 tick target=10
+blk=0 off=0x0f6bc frame=8 type=0xc0 len=164 sync
+blk=0 off=0x0f768 frame=8 type=0xbe len=28 tick target=12
+blk=0 off=0x0f78c frame=10 type=0xc0 len=164 sync
+blk=0 off=0x0f838 frame=10 type=0xbe len=28 tick target=14
+blk=0 off=0x0f85c frame=12 type=0xc0 len=164 sync
+blk=0 off=0x0f908 frame=12 type=0x97 len=36 apm {"player":1,"rate":0}
+blk=0 off=0x0f934 frame=12 type=0xbe len=28 tick target=16
+blk=0 off=0x0f958 frame=14 type=0xc0 len=164 sync
+blk=0 off=0x0fa04 frame=14 type=0xbe len=28 tick target=18
+blk=0 off=0x0fa28 frame=16 type=0xc0 len=164 sync
+blk=0 off=0x0fad4 frame=16 type=0xbe len=28 tick target=20
+blk=0 off=0x0faf8 frame=18 type=0xc0 len=164 sync
+blk=0 off=0x0fba4 frame=18 type=0xbe len=28 tick target=22
+blk=0 off=0x0fbc8 frame=20 type=0xc0 len=164 sync
+blk=0 off=0x0fc74 frame=20 type=0xbe len=28 tick target=24
+blk=0 off=0x0fc98 frame=22 type=0xc0 len=164 sync
+blk=0 off=0x0fd44 frame=22 type=0xbe len=28 tick target=26
+blk=0 off=0x0fd68 frame=24 type=0xc0 len=164 sync
+blk=0 off=0x0fe14 frame=24 type=0x97 len=36 apm {"player":1,"rate":0}
+blk=0 off=0x0fe40 frame=24 type=0xbe len=28 tick target=28
+blk=0 off=0x0fe64 frame=26 type=0xc0 len=164 sync
+blk=0 off=0x0ff10 frame=26 type=0x95 len=37 pointer {"player":1,"x":45.781494,"y":519.9866}
+blk=0 off=0x0ff3d frame=26 type=0xbe len=28 tick target=30
+blk=0 off=0x0ff61 frame=28 type=0xc0 len=164 sync
+blk=0 off=0x1000d frame=28 type=0x95 len=37 pointer {"player":1,"x":45.61206,"y":519.9662}
+blk=0 off=0x1003a frame=28 type=0xbe len=28 tick target=32
+blk=0 off=0x1005e frame=30 type=0xc0 len=164 sync
+blk=0 off=0x1010a frame=30 type=0x95 len=37 pointer {"player":1,"x":44.446777,"y":519.8263}
+blk=0 off=0x10137 frame=30 type=0xbe len=28 tick target=34
+blk=0 off=0x1015b frame=32 type=0xc0 len=164 sync
+blk=0 off=0x10207 frame=32 type=0x95 len=37 pointer {"player":1,"x":41.815186,"y":519.5104}
+blk=0 off=0x10234 frame=32 type=0xbe len=28 tick target=36
+blk=0 off=0x10258 frame=34 type=0xc0 len=164 sync
+blk=0 off=0x10304 frame=34 type=0x95 len=37 pointer {"player":1,"x":36.993896,"y":518.93164}
+blk=0 off=0x10331 frame=34 type=0xbe len=28 tick target=38
+blk=0 off=0x10355 frame=36 type=0xc0 len=164 sync
+blk=0 off=0x10401 frame=36 type=0x95 len=37 pointer {"player":1,"x":29.260986,"y":518.0033}
+blk=0 off=0x1042e frame=36 type=0xbe len=28 tick target=40
+blk=0 off=0x10452 frame=38 type=0xc0 len=164 sync
+blk=0 off=0x104fe frame=38 type=0x95 len=37 pointer {"player":1,"x":18.013672,"y":516.6531}
+blk=0 off=0x1052b frame=38 type=0xbe len=28 tick target=42
+blk=0 off=0x1054f frame=40 type=0xc0 len=164 sync
+blk=0 off=0x105fb frame=40 type=0x95 len=37 pointer {"player":1,"x":-0.0012207031,"y":514.4905}
+blk=0 off=0x10628 frame=40 type=0xbe len=28 tick target=44
+blk=0 off=0x1064c frame=42 type=0xc0 len=164 sync
+blk=0 off=0x106f8 frame=42 type=0x95 len=37 pointer {"player":1,"x":-21.093506,"y":511.95837}
+blk=0 off=0x10725 frame=42 type=0xbe len=28 tick target=46
+blk=0 off=0x10749 frame=44 type=0xc0 len=164 sync
+blk=0 off=0x107f5 frame=44 type=0x95 len=37 pointer {"player":1,"x":-47.776855,"y":508.75513}
+blk=0 off=0x10822 frame=44 type=0xbe len=28 tick target=48
+blk=0 off=0x10846 frame=46 type=0xc0 len=164 sync
+blk=0 off=0x108f2 frame=46 type=0x95 len=37 pointer {"player":1,"x":-80.63989,"y":504.80994}
+blk=0 off=0x1091f frame=46 type=0xbe len=28 tick target=50
+blk=0 off=0x10943 frame=48 type=0xc0 len=164 sync
+blk=0 off=0x109ef frame=48 type=0x95 len=37 pointer {"player":1,"x":-120.59668,"y":500.0133}
+blk=0 off=0x10a1c frame=48 type=0xbe len=28 tick target=52
+blk=0 off=0x10a40 frame=50 type=0xc0 len=164 sync
+blk=0 off=0x10aec frame=50 type=0x95 len=37 pointer {"player":1,"x":-168.5122,"y":494.2611}
+blk=0 off=0x10b19 frame=50 type=0xbe len=28 tick target=54
+blk=0 off=0x10b3d frame=52 type=0xc0 len=164 sync
+blk=0 off=0x10be9 frame=52 type=0x95 len=37 pointer {"player":1,"x":-233.36719,"y":486.47546}
+blk=0 off=0x10c16 frame=52 type=0xbe len=28 tick target=56
+blk=0 off=0x10c3a frame=54 type=0xc0 len=164 sync
+blk=0 off=0x10ce6 frame=54 type=0x95 len=37 pointer {"player":1,"x":-299.65796,"y":478.51758}
+blk=0 off=0x10d13 frame=54 type=0xbe len=28 tick target=58
+blk=0 off=0x10d37 frame=56 type=0xc0 len=164 sync
+blk=0 off=0x10de3 frame=56 type=0x95 len=37 pointer {"player":1,"x":-375.3098,"y":469.43567}
+blk=0 off=0x10e10 frame=56 type=0xbe len=28 tick target=60
+blk=0 off=0x10e34 frame=58 type=0xc0 len=164 sync
+blk=0 off=0x10ee0 frame=58 type=0x95 len=37 pointer {"player":1,"x":-461.50537,"y":459.08826}
+blk=0 off=0x10f0d frame=58 type=0xbe len=28 tick target=62
+blk=0 off=0x10f31 frame=60 type=0xc0 len=164 sync
+blk=0 off=0x10fdd frame=60 type=0x95 len=37 pointer {"player":1,"x":-559.14136,"y":447.3673}
+blk=0 off=0x1100a frame=60 type=0xbe len=28 tick target=64
+blk=0 off=0x1102e frame=62 type=0xc0 len=164 sync
+blk=0 off=0x110da frame=62 type=0x95 len=37 pointer {"player":1,"x":-685.23535,"y":432.22998}
+blk=0 off=0x11107 frame=62 type=0xbe len=28 tick target=66
+blk=0 off=0x1112b frame=64 type=0xc0 len=164 sync
+blk=0 off=0x111d7 frame=64 type=0x95 len=37 pointer {"player":1,"x":-805.4468,"y":417.79895}
+blk=0 off=0x11204 frame=64 type=0xbe len=28 tick target=68
+blk=0 off=0x11228 frame=66 type=0xc0 len=164 sync
+blk=0 off=0x112d4 frame=66 type=0x95 len=37 pointer {"player":1,"x":-917.2742,"y":404.3744}
+blk=0 off=0x11301 frame=66 type=0xbe len=28 tick target=70
+blk=0 off=0x11325 frame=68 type=0xc0 len=164 sync
+blk=0 off=0x113d1 frame=68 type=0x95 len=37 pointer {"player":1,"x":-1017.46594,"y":392.34668}
+blk=0 off=0x113fe frame=68 type=0xbe len=28 tick target=72
+blk=0 off=0x11422 frame=70 type=0xc0 len=164 sync
+blk=0 off=0x114ce frame=70 type=0x95 len=37 pointer {"player":1,"x":-1106.3293,"y":381.67883}
+blk=0 off=0x114fb frame=70 type=0xbe len=28 tick target=74
+blk=0 off=0x1151f frame=72 type=0xc0 len=164 sync
+blk=0 off=0x115cb frame=72 type=0x95 len=37 pointer {"player":1,"x":-1194.7806,"y":371.06055}
+blk=0 off=0x115f8 frame=72 type=0xbe len=28 tick target=76
+blk=0 off=0x1161c frame=74 type=0xc0 len=164 sync
+blk=0 off=0x116c8 frame=74 type=0x95 len=37 pointer {"player":1,"x":-1262.3561,"y":362.94824}
+blk=0 off=0x116f5 frame=74 type=0xbe len=28 tick target=78
+blk=0 off=0x11719 frame=76 type=0xc0 len=164 sync
+blk=0 off=0x117c5 frame=76 type=0x95 len=37 pointer {"player":1,"x":-1320.3654,"y":355.9845}
+blk=0 off=0x117f2 frame=76 type=0xbe len=28 tick target=80
+blk=0 off=0x11816 frame=78 type=0xc0 len=164 sync
+blk=0 off=0x118c2 frame=78 type=0x95 len=37 pointer {"player":1,"x":-1369.3353,"y":350.1057}
+blk=0 off=0x118ef frame=78 type=0xbe len=28 tick target=82
+blk=0 off=0x11913 frame=80 type=0xc0 len=164 sync
+blk=0 off=0x119bf frame=80 type=0xe6 len=344 raw e600000000000000000000000000000000e60000000000004f6e53747265616d...
+blk=0 off=0x11b1f frame=80 type=0x95 len=37 pointer {"player":1,"x":-1411.2559,"y":345.07324}
+blk=0 off=0x11b4c frame=80 type=0xbe len=28 tick target=84
+blk=0 off=0x11b70 frame=82 type=0xc0 len=164 sync
+blk=0 off=0x11c1c frame=82 type=0x95 len=37 pointer {"player":1,"x":-1445.9967,"y":340.9027}
+blk=0 off=0x11c49 frame=82 type=0xbe len=28 tick target=86
+blk=0 off=0x11c6d frame=84 type=0xc0 len=164 sync
+blk=0 off=0x11d19 frame=84 type=0x95 len=37 pointer {"player":1,"x":-1477.1974,"y":337.15723}
+blk=0 off=0x11d46 frame=84 type=0xbe len=28 tick target=88
+blk=0 off=0x11d6a frame=86 type=0xc0 len=164 sync
+blk=0 off=0x11e16 frame=86 type=0x95 len=37 pointer {"player":1,"x":-1498.7439,"y":334.57056}
+blk=0 off=0x11e43 frame=86 type=0xbe len=28 tick target=90
+blk=0 off=0x11e67 frame=88 type=0xc0 len=164 sync
+blk=0 off=0x11f13 frame=88 type=0x95 len=37 pointer {"player":1,"x":-1515.1902,"y":332.59625}
+blk=0 off=0x11f40 frame=88 type=0xbe len=28 tick target=92
+blk=0 off=0x11f64 frame=90 type=0xc0 len=164 sync
+blk=0 off=0x12010 frame=90 type=0x95 len=37 pointer {"player":1,"x":-1527.2684,"y":331.1463}
+blk=0 off=0x1203d frame=90 type=0xbe len=28 tick target=94
+blk=0 off=0x12061 frame=92 type=0xc0 len=164 sync
+blk=0 off=0x1210d frame=92 type=0x95 len=37 pointer {"player":1,"x":-1535.6895,"y":330.13538}
+blk=0 off=0x1213a frame=92 type=0xbe len=28 tick target=96
+blk=0 off=0x1215e frame=94 type=0xc0 len=164 sync
+blk=0 off=0x1220a frame=94 type=0x95 len=37 pointer {"player":1,"x":-1541.685,"y":329.4156}
+blk=0 off=0x12237 frame=94 type=0xbe len=28 tick target=98
+blk=0 off=0x1225b frame=96 type=0xc0 len=164 sync
+blk=0 off=0x12307 frame=96 type=0x95 len=37 pointer {"player":1,"x":-1544.4438,"y":329.0844}
+blk=0 off=0x12334 frame=96 type=0xbe len=28 tick target=100
+blk=0 off=0x12358 frame=98 type=0xc0 len=164 sync
+blk=0 off=0x12404 frame=98 type=0x95 len=37 pointer {"player":1,"x":-1545.6404,"y":328.94086}
+blk=0 off=0x12431 frame=98 type=0xbe len=28 tick target=102
+blk=0 off=0x12455 frame=100 type=0xc0 len=164 sync
+blk=0 off=0x12501 frame=100 type=0x95 len=37 pointer {"player":1,"x":-1545.9198,"y":328.9073}
+blk=0 off=0x1252e frame=100 type=0xbe len=28 tick target=104
+blk=0 off=0x12552 frame=102 type=0xc0 len=164 sync
+blk=0 off=0x125fe frame=102 type=0x95 len=37 pointer {"player":1,"x":-1545.925,"y":328.90662}
+blk=0 off=0x1262b frame=102 type=0xbe len=28 tick target=106
+blk=0 off=0x1264f frame=104 type=0xc0 len=164 sync
+blk=0 off=0x126fb frame=104 type=0xbe len=28 tick target=108
+blk=0 off=0x1271f frame=106 type=0xc0 len=164 sync
+blk=0 off=0x127cb frame=106 type=0xbe len=28 tick target=110
+blk=0 off=0x127ef frame=108 type=0xc0 len=164 sync
+blk=0 off=0x1289b frame=108 type=0xbe len=28 tick target=112
+blk=0 off=0x128bf frame=110 type=0xc0 len=164 sync
+blk=0 off=0x1296b frame=110 type=0xbe len=28 tick target=114
+blk=0 off=0x1298f frame=112 type=0xc0 len=164 sync
+blk=0 off=0x12a3b frame=112 type=0xbe len=28 tick target=116
+blk=0 off=0x12a5f frame=114 type=0xc0 len=164 sync
+blk=0 off=0x12b0b frame=114 type=0xbe len=28 tick target=118
+blk=0 off=0x12b2f frame=116 type=0xc0 len=164 sync
+blk=0 off=0x12bdb frame=116 type=0x95 len=37 pointer {"player":1,"x":-1649.8185,"y":294.27545}
+blk=0 off=0x12c08 frame=116 type=0xbe len=28 tick target=120
+blk=0 off=0x12c2c frame=118 type=0xc0 len=164 sync
+blk=0 off=0x12cd8 frame=118 type=0x95 len=37 pointer {"player":1,"x":-2017.4414,"y":179.72626}
+blk=0 off=0x12d05 frame=118 type=0x92 len=53 hover {"player":1,"node_a":0,"node_b":0,"device":0,"terrain":65535,"hover_kind":6,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=0 off=0x12d42 frame=118 type=0xbe len=28 tick target=122
+blk=0 off=0x12d66 frame=120 type=0xc0 len=164 sync
+blk=0 off=0x12e12 frame=120 type=0x95 len=37 pointer {"player":1,"x":-2555.5562,"y":-1.4212646}
+blk=0 off=0x12e3f frame=120 type=0x92 len=53 hover {"player":1,"node_a":0,"node_b":0,"device":0,"terrain":65535,"hover_kind":0,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=0 off=0x12e7c frame=120 type=0xbe len=28 tick target=124
+blk=0 off=0x12ea0 frame=122 type=0xc0 len=164 sync
+blk=0 off=0x12f4c frame=122 type=0x95 len=37 pointer {"player":1,"x":-2760.679,"y":-70.68353}
+blk=0 off=0x12f79 frame=122 type=0xbe len=28 tick target=126
+blk=0 off=0x12f9d frame=124 type=0xc0 len=164 sync
+blk=0 off=0x13049 frame=124 type=0x95 len=37 pointer {"player":1,"x":-2766.0068,"y":-73.34747}
+blk=0 off=0x13076 frame=124 type=0xbe len=28 tick target=128
+blk=0 off=0x1309a frame=126 type=0xc0 len=164 sync
+blk=0 off=0x13146 frame=126 type=0xbe len=28 tick target=130
+blk=0 off=0x1316a frame=128 type=0xc0 len=164 sync
+blk=1 off=0x00000 frame=128 type=0xe1 len=63233 snapshot sections=7
+blk=1 off=0x0f709 frame=128 type=0xbe len=28 tick target=132
+blk=1 off=0x0f72d frame=130 type=0xc0 len=164 sync
+blk=1 off=0x0f7d9 frame=130 type=0x95 len=37 pointer {"player":1,"x":-2755.3513,"y":-203.88025}
+blk=1 off=0x0f806 frame=130 type=0xbe len=28 tick target=134
+blk=1 off=0x0f82a frame=132 type=0xc0 len=164 sync
+blk=1 off=0x0f8d6 frame=132 type=0x95 len=37 pointer {"player":1,"x":-2723.384,"y":-424.98682}
+blk=1 off=0x0f903 frame=132 type=0xbe len=28 tick target=136
+blk=1 off=0x0f927 frame=134 type=0xc0 len=164 sync
+blk=1 off=0x0f9d3 frame=134 type=0x95 len=37 pointer {"player":1,"x":-2715.392,"y":-518.2245}
+blk=1 off=0x0fa00 frame=134 type=0xbe len=28 tick target=138
+blk=1 off=0x0fa24 frame=136 type=0xc0 len=164 sync
+blk=1 off=0x0fad0 frame=136 type=0x95 len=37 pointer {"player":1,"x":-2917.851,"y":-662.88}
+blk=1 off=0x0fafd frame=136 type=0xbe len=28 tick target=140
+blk=1 off=0x0fb21 frame=138 type=0xc0 len=164 sync
+blk=1 off=0x0fbcd frame=138 type=0x95 len=37 pointer {"player":1,"x":-3091.608,"y":-528.8159}
+blk=1 off=0x0fbfa frame=138 type=0xbe len=28 tick target=142
+blk=1 off=0x0fc1e frame=140 type=0xc0 len=164 sync
+blk=1 off=0x0fcca frame=140 type=0x95 len=37 pointer {"player":1,"x":-3236.666,"y":-342.3405}
+blk=1 off=0x0fcf7 frame=140 type=0xbe len=28 tick target=144
+blk=1 off=0x0fd1b frame=142 type=0xc0 len=164 sync
+blk=1 off=0x0fdc7 frame=142 type=0x95 len=37 pointer {"player":1,"x":-3242.1697,"y":-214.47168}
+blk=1 off=0x0fdf4 frame=142 type=0xbe len=28 tick target=146
+blk=1 off=0x0fe18 frame=144 type=0xc0 len=164 sync
+blk=1 off=0x0fec4 frame=144 type=0x95 len=37 pointer {"player":1,"x":-2901.186,"y":-299.71756}
+blk=1 off=0x0fef1 frame=144 type=0xbe len=28 tick target=148
+blk=1 off=0x0ff15 frame=146 type=0xc0 len=164 sync
+blk=1 off=0x0ffc1 frame=146 type=0x95 len=37 pointer {"player":1,"x":-2653.4402,"y":-464.88147}
+blk=1 off=0x0ffee frame=146 type=0xbe len=28 tick target=150
+blk=1 off=0x10012 frame=148 type=0xc0 len=164 sync
+blk=1 off=0x100be frame=148 type=0x95 len=37 pointer {"player":1,"x":-2594.8337,"y":-523.48804}
+blk=1 off=0x100eb frame=148 type=0xbe len=28 tick target=152
+blk=1 off=0x1010f frame=150 type=0xc0 len=164 sync
+blk=1 off=0x101bb frame=150 type=0x95 len=37 pointer {"player":1,"x":-2536.227,"y":-582.0946}
+blk=1 off=0x101e8 frame=150 type=0xbe len=28 tick target=154
+blk=1 off=0x1020c frame=152 type=0xc0 len=164 sync
+blk=1 off=0x102b8 frame=152 type=0x95 len=37 pointer {"player":1,"x":-2461.637,"y":-683.3241}
+blk=1 off=0x102e5 frame=152 type=0xbe len=28 tick target=156
+blk=1 off=0x10309 frame=154 type=0xc0 len=164 sync
+blk=1 off=0x103b5 frame=154 type=0x95 len=37 pointer {"player":1,"x":-2344.4238,"y":-829.87585}
+blk=1 off=0x103e2 frame=154 type=0xbe len=28 tick target=158
+blk=1 off=0x10406 frame=156 type=0xc0 len=164 sync
+blk=1 off=0x104b2 frame=156 type=0x95 len=37 pointer {"player":1,"x":-2277.8257,"y":-994.8515}
+blk=1 off=0x104df frame=156 type=0xbe len=28 tick target=160
+blk=1 off=0x10503 frame=158 type=0xc0 len=164 sync
+blk=1 off=0x105af frame=158 type=0x95 len=37 pointer {"player":1,"x":-2277.8257,"y":-1139.5822}
+blk=1 off=0x105dc frame=158 type=0xbe len=28 tick target=162
+blk=1 off=0x10600 frame=160 type=0xc0 len=164 sync
+blk=1 off=0x106ac frame=160 type=0x95 len=37 pointer {"player":1,"x":-2277.8257,"y":-1286.5323}
+blk=1 off=0x106d9 frame=160 type=0xbe len=28 tick target=164
+blk=1 off=0x106fd frame=162 type=0xc0 len=164 sync
+blk=1 off=0x107a9 frame=162 type=0x95 len=37 pointer {"player":1,"x":-2341.76,"y":-1430.9216}
+blk=1 off=0x107d6 frame=162 type=0xbe len=28 tick target=166
+blk=1 off=0x107fa frame=164 type=0xc0 len=164 sync
+blk=1 off=0x108a6 frame=164 type=0x95 len=37 pointer {"player":1,"x":-2400.3665,"y":-1575.0264}
+blk=1 off=0x108d3 frame=164 type=0xbe len=28 tick target=168
+blk=1 off=0x108f7 frame=166 type=0xc0 len=164 sync
+blk=1 off=0x109a3 frame=166 type=0x95 len=37 pointer {"player":1,"x":-2405.6943,"y":-1720.5964}
+blk=1 off=0x109d0 frame=166 type=0xbe len=28 tick target=170
+blk=1 off=0x109f4 frame=168 type=0xc0 len=164 sync
+blk=1 off=0x10aa0 frame=168 type=0x95 len=37 pointer {"player":1,"x":-2405.6943,"y":-1886.6675}
+blk=1 off=0x10acd frame=168 type=0xbe len=28 tick target=172
+blk=1 off=0x10af1 frame=170 type=0xc0 len=164 sync
+blk=1 off=0x10b9d frame=170 type=0x95 len=37 pointer {"player":1,"x":-2387.0469,"y":-2032.3657}
+blk=1 off=0x10bca frame=170 type=0xbe len=28 tick target=174
+blk=1 off=0x10bee frame=172 type=0xc0 len=164 sync
+blk=1 off=0x10c9a frame=172 type=0x95 len=37 pointer {"player":1,"x":-2373.727,"y":-2176.4136}
+blk=1 off=0x10cc7 frame=172 type=0xbe len=28 tick target=176
+blk=1 off=0x10ceb frame=174 type=0xc0 len=164 sync
+blk=1 off=0x10d97 frame=174 type=0x95 len=37 pointer {"player":1,"x":-2373.727,"y":-2321.5283}
+blk=1 off=0x10dc4 frame=174 type=0xbe len=28 tick target=178
+blk=1 off=0x10de8 frame=176 type=0xc0 len=164 sync
+blk=1 off=0x10e94 frame=176 type=0x95 len=37 pointer {"player":1,"x":-2373.727,"y":-2450}
+blk=1 off=0x10ec1 frame=176 type=0xbe len=28 tick target=180
+blk=1 off=0x10ee5 frame=178 type=0xc0 len=164 sync
+blk=1 off=0x10f91 frame=178 type=0x95 len=37 pointer {"player":1,"x":-2381.719,"y":-2332.7869}
+blk=1 off=0x10fbe frame=178 type=0xbe len=28 tick target=182
+blk=1 off=0x10fe2 frame=180 type=0xc0 len=164 sync
+blk=1 off=0x1108e frame=180 type=0x95 len=37 pointer {"player":1,"x":-2421.678,"y":-1661.4755}
+blk=1 off=0x110bb frame=180 type=0xbe len=28 tick target=184
+blk=1 off=0x110df frame=182 type=0xc0 len=164 sync
+blk=1 off=0x1118b frame=182 type=0x95 len=37 pointer {"player":1,"x":-2333.768,"y":-958.1968}
+blk=1 off=0x111b8 frame=182 type=0xbe len=28 tick target=186
+blk=1 off=0x111dc frame=184 type=0xc0 len=164 sync
+blk=1 off=0x11288 frame=184 type=0x95 len=37 pointer {"player":1,"x":-2283.1533,"y":-590.7843}
+blk=1 off=0x112b5 frame=184 type=0xbe len=28 tick target=188
+blk=1 off=0x112d9 frame=186 type=0xc0 len=164 sync
+blk=1 off=0x11385 frame=186 type=0x95 len=37 pointer {"player":1,"x":-2219.219,"y":-445.328}
+blk=1 off=0x113b2 frame=186 type=0xbe len=28 tick target=190
+blk=1 off=0x113d6 frame=188 type=0xc0 len=164 sync
+blk=1 off=0x11482 frame=188 type=0x95 len=37 pointer {"player":1,"x":-2144.629,"y":-278.9867}
+blk=1 off=0x114af frame=188 type=0xbe len=28 tick target=192
+blk=1 off=0x114d3 frame=190 type=0xc0 len=164 sync
+blk=1 off=0x1157f frame=190 type=0x95 len=37 pointer {"player":1,"x":-2144.629,"y":-134.81079}
+blk=1 off=0x115ac frame=190 type=0xbe len=28 tick target=194
+blk=1 off=0x115d0 frame=192 type=0xc0 len=164 sync
+blk=1 off=0x1167c frame=192 type=0x95 len=37 pointer {"player":1,"x":-2144.629,"y":11.328491}
+blk=1 off=0x116a9 frame=192 type=0xbe len=28 tick target=196
+blk=1 off=0x116cd frame=194 type=0xc0 len=164 sync
+blk=1 off=0x11779 frame=194 type=0x95 len=37 pointer {"player":1,"x":-2144.629,"y":156.01648}
+blk=1 off=0x117a6 frame=194 type=0xbe len=28 tick target=198
+blk=1 off=0x117ca frame=196 type=0xc0 len=164 sync
+blk=1 off=0x11876 frame=196 type=0x95 len=37 pointer {"player":1,"x":-2144.629,"y":301.21667}
+blk=1 off=0x118a3 frame=196 type=0xbe len=28 tick target=200
+blk=1 off=0x118c7 frame=198 type=0xc0 len=164 sync
+blk=1 off=0x11973 frame=198 type=0x95 len=37 pointer {"player":1,"x":-2144.629,"y":467.06006}
+blk=1 off=0x119a0 frame=198 type=0xbe len=28 tick target=202
+blk=1 off=0x119c4 frame=200 type=0xc0 len=164 sync
+blk=1 off=0x11a70 frame=200 type=0x95 len=37 pointer {"player":1,"x":-2144.629,"y":613.0001}
+blk=1 off=0x11a9d frame=200 type=0xbe len=28 tick target=204
+blk=1 off=0x11ac1 frame=202 type=0xc0 len=164 sync
+blk=1 off=0x11b6d frame=202 type=0x95 len=37 pointer {"player":1,"x":-2086.0225,"y":624.15625}
+blk=1 off=0x11b9a frame=202 type=0xbe len=28 tick target=206
+blk=1 off=0x11bbe frame=204 type=0xc0 len=164 sync
+blk=1 off=0x11c6a frame=204 type=0x95 len=37 pointer {"player":1,"x":-2011.4321,"y":464.3202}
+blk=1 off=0x11c97 frame=204 type=0xbe len=28 tick target=208
+blk=1 off=0x11cbb frame=206 type=0xc0 len=164 sync
+blk=1 off=0x11d67 frame=206 type=0x95 len=37 pointer {"player":1,"x":-1950.1616,"y":200.5907}
+blk=1 off=0x11d94 frame=206 type=0x92 len=53 hover {"player":1,"node_a":287,"node_b":291,"device":0,"terrain":65535,"hover_kind":6,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=1 off=0x11dd1 frame=206 type=0xbe len=28 tick target=210
+blk=1 off=0x11df5 frame=208 type=0xc0 len=164 sync
+blk=1 off=0x11ea1 frame=208 type=0x95 len=37 pointer {"player":1,"x":-2003.4403,"y":-49.819153}
+blk=1 off=0x11ece frame=208 type=0x92 len=53 hover {"player":1,"node_a":0,"node_b":0,"device":0,"terrain":65535,"hover_kind":6,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=1 off=0x11f0b frame=208 type=0xbe len=28 tick target=212
+blk=1 off=0x11f2f frame=210 type=0xc0 len=164 sync
+blk=1 off=0x11fdb frame=210 type=0x95 len=37 pointer {"player":1,"x":-2120.6533,"y":-209.65521}
+blk=1 off=0x12008 frame=210 type=0x92 len=53 hover {"player":1,"node_a":309,"node_b":311,"device":0,"terrain":65535,"hover_kind":6,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=1 off=0x12045 frame=210 type=0xbe len=28 tick target=214
+blk=1 off=0x12069 frame=212 type=0xc0 len=164 sync
+blk=1 off=0x12115 frame=212 type=0x95 len=37 pointer {"player":1,"x":-2125.9814,"y":-214.9831}
+blk=1 off=0x12142 frame=212 type=0xbe len=28 tick target=216
+blk=1 off=0x12166 frame=214 type=0xc0 len=164 sync
+blk=1 off=0x12212 frame=214 type=0x95 len=37 pointer {"player":1,"x":-2125.9814,"y":-220.31097}
+blk=1 off=0x1223f frame=214 type=0x92 len=53 hover {"player":1,"node_a":309,"node_b":310,"device":0,"terrain":65535,"hover_kind":6,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=1 off=0x1227c frame=214 type=0x95 len=37 pointer {"player":1,"x":-2131.309,"y":-228.30273}
+blk=1 off=0x122a9 frame=214 type=0x92 len=53 hover {"player":1,"node_a":0,"node_b":0,"device":0,"terrain":65535,"hover_kind":1,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=1 off=0x122e6 frame=214 type=0xbe len=28 tick target=218
+blk=1 off=0x1230a frame=216 type=0xc0 len=164 sync
+blk=1 off=0x123b6 frame=216 type=0x95 len=37 pointer {"player":1,"x":-3069.014,"y":19.443115}
+blk=1 off=0x123e3 frame=216 type=0x92 len=53 hover {"player":1,"node_a":0,"node_b":0,"device":0,"terrain":65535,"hover_kind":0,"material":0,"build_type":255,"buttons":0,"feedback":0}
+blk=1 off=0x12420 frame=216 type=0xbe len=28 tick target=220
+blk=1 off=0x12444 frame=218 type=0xc0 len=164 sync
+blk=1 off=0x124f0 frame=218 type=0xbe len=28 tick target=222
+blk=1 off=0x12514 frame=220 type=0xc0 len=164 sync
+blk=1 off=0x125c0 frame=220 type=0xbe len=28 tick target=224
+blk=1 off=0x125e4 frame=222 type=0xc0 len=164 sync
+blk=1 off=0x12690 frame=222 type=0xbe len=28 tick target=226
+blk=1 off=0x126b4 frame=224 type=0xc0 len=164 sync
+blk=1 off=0x12760 frame=224 type=0xbe len=28 tick target=228
+blk=1 off=0x12784 frame=226 type=0xc0 len=164 sync
+blk=1 off=0x12830 frame=226 type=0xbe len=28 tick target=230
+blk=1 off=0x12854 frame=228 type=0xc0 len=164 sync
+blk=1 off=0x12900 frame=228 type=0x97 len=36 apm {"player":1,"rate":10}
+blk=1 off=0x1292c frame=228 type=0xbe len=28 tick target=232
+blk=1 off=0x12950 frame=230 type=0xc0 len=164 sync
+blk=1 off=0x129fc frame=230 type=0xbe len=28 tick target=234
+blk=1 off=0x12a20 frame=232 type=0xc0 len=164 sync
+blk=1 off=0x12acc frame=232 type=0x95 len=37 pointer {"player":1,"x":-3194.219,"y":88.705444}
+blk=1 off=0x12af9 frame=232 type=0xbe len=28 tick target=236
+blk=1 off=0x12b1d frame=234 type=0xc0 len=164 sync
+blk=1 off=0x12bc9 frame=234 type=0x95 len=37 pointer {"player":1,"x":-3260.8174,"y":123.33667}
+blk=1 off=0x12bf6 frame=234 type=0xbe len=28 tick target=238
+blk=1 off=0x12c1a frame=236 type=0xc0 len=164 sync
+blk=1 off=0x12cc6 frame=236 type=0x95 len=37 pointer {"player":1,"x":-3279.4648,"y":126.00037}
+blk=1 off=0x12cf3 frame=236 type=0xbe len=28 tick target=240
+blk=1 off=0x12d17 frame=238 type=0xc0 len=164 sync
+blk=1 off=0x12dc3 frame=238 type=0xbe len=28 tick target=242
+blk=1 off=0x12de7 frame=240 type=0xc0 len=164 sync
+blk=1 off=0x12e93 frame=240 type=0x97 len=36 apm {"player":1,"rate":20}
+blk=1 off=0x12ebf frame=240 type=0xbe len=28 tick target=244
+blk=1 off=0x12ee3 frame=242 type=0xc0 len=164 sync
+blk=1 off=0x12f8f frame=242 type=0xbe len=28 tick target=246
+blk=1 off=0x12fb3 frame=244 type=0xc0 len=164 sync
+blk=1 off=0x1305f frame=244 type=0xbe len=28 tick target=248
+blk=1 off=0x13083 frame=246 type=0xc0 len=164 sync
+blk=1 off=0x1312f frame=246 type=0xbe len=28 tick target=250
+blk=1 off=0x13153 frame=248 type=0xc0 len=164 sync
+blk=1 off=0x131ff frame=248 type=0xbe len=28 tick target=252
+blk=1 off=0x13223 frame=250 type=0xc0 len=164 sync
+blk=1 off=0x132cf frame=250 type=0xbe len=28 tick target=254
+blk=1 off=0x132f3 frame=252 type=0xc0 len=164 sync
+blk=1 off=0x1339f frame=252 type=0xbe len=28 tick target=256
+blk=1 off=0x133c3 frame=254 type=0xc0 len=164 sync
+blk=1 off=0x1346f frame=254 type=0xbe len=28 tick target=258
+blk=1 off=0x13493 frame=256 type=0xc0 len=164 sync
+blk=2 off=0x00000 frame=256 type=0xe1 len=63644 snapshot sections=7
+blk=2 off=0x0f8a4 frame=256 type=0xbe len=28 tick target=260
+blk=2 off=0x0f8c8 frame=258 type=0xc0 len=164 sync
+blk=2 off=0x0f974 frame=258 type=0xbe len=28 tick target=262
+blk=2 off=0x0f998 frame=260 type=0xc0 len=164 sync
+blk=2 off=0x0fa44 frame=260 type=0xbe len=28 tick target=264
+blk=2 off=0x0fa68 frame=262 type=0xc0 len=164 sync
+blk=2 off=0x0fb14 frame=262 type=0xbe len=28 tick target=266
+blk=2 off=0x0fb38 frame=264 type=0xc0 len=164 sync
+blk=2 off=0x0fbe4 frame=264 type=0xbe len=28 tick target=268
+blk=2 off=0x0fc08 frame=266 type=0xc0 len=164 sync
+blk=2 off=0x0fcb4 frame=266 type=0xbe len=28 tick target=270
+blk=2 off=0x0fcd8 frame=268 type=0xc0 len=164 sync
+blk=2 off=0x0fd84 frame=268 type=0xbe len=28 tick target=272
+blk=2 off=0x0fda8 frame=270 type=0xc0 len=164 sync
+blk=2 off=0x0fe54 frame=270 type=0xbe len=28 tick target=274
+blk=2 off=0x0fe78 frame=272 type=0xc0 len=164 sync
+blk=2 off=0x0ff24 frame=272 type=0xbe len=28 tick target=276
+blk=2 off=0x0ff48 frame=274 type=0xc0 len=164 sync
+blk=2 off=0x0fff4 frame=274 type=0xbe len=28 tick target=278
+blk=2 off=0x10018 frame=276 type=0xc0 len=164 sync
+blk=2 off=0x100c4 frame=276 type=0xbe len=28 tick target=280
+blk=2 off=0x100e8 frame=278 type=0xc0 len=164 sync

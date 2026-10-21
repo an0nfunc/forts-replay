@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "format_version": 1383,
+  "frames": 2520,
+  "duration": 100.8,
+  "ranked": false,
+  "map": "maps/Abyss/Abyss.fwe",
+  "options": [
+    "repair_station",
+    "unlimited-energy",
+    "unlimited-metal",
+    "weapon_pack",
+    "dlc1_portal_skirmish",
+    "dlc1_weapons_skirmish",
+    "dlc3",
+    "fast-build",
+    "unlock-all-weapons"
+  ],
+  "players": [
+    {
+      "id": 1,
+      "slot": 0,
+      "team": 1,
+      "side": 1,
+      "name": "random🐧",
+      "recorder": true
+    }
+  ],
+  "timelines": [
+    {
+      "player": 1,
+      "counts": {
+        "fire": 3,
+        "fire_blocked": 1,
+        "place": 4
+      },
+      "commands": [
+        {
+          "frame": 514,
+          "kind": "place",
+          "fields": {
+            "player": 1,
+            "t": 0.6382465,
+            "type_id": 0,
+            "node_a": 307,
+            "node_b": 308,
+            "x": -2033.3833,
+            "y": -96.20095,
+            "aim": 0,
+            "moved_device": -1
+          }
+        },
+        {
+          "frame": 546,
+          "kind": "place",
+          "fields": {
+            "player": 1,
+            "t": 0.0668339,
+            "type_id": 0,
+            "node_a": 298,
+            "node_b": 302,
+            "x": -1990.2285,
+            "y": 4.4835196,
+            "aim": 0,
+            "moved_device": -1
+          }
+        },
+        {
+          "frame": 580,
+          "kind": "place",
+          "fields": {
+            "player": 1,
+            "t": 0.89131165,
+            "type_id": 0,
+            "node_a": 315,
+            "node_b": 289,
+            "x": -2012.5251,
+            "y": 404.13113,
+            "aim": 0,
+            "moved_device": -1
+          }
+        },
+        {
+          "frame": 858,
+          "kind": "place",
+          "fields": {
+            "player": 1,
+            "t": 0.3853879,
+            "type_id": 4,
+            "node_a": 302,
+            "node_b": 301,
+            "x": -1858.2609,
+            "y": 7.440774,
+            "aim": 1.134464,
+            "moved_device": -1
+          }
+        },
+        {
+          "frame": 1130,
+          "kind": "fire_blocked",
+          "fields": {
+            "player": 1,
+            "device": 10,
+            "angle": 6.2824974
+          }
+        },
+        {
+          "frame": 1350,
+          "kind": "fire",
+          "fields": {
+            "player": 1,
+            "device": 11,
+            "angle": 0.002551837,
+            "power": 0.5,
+            "immediate": true
+          }
+        },
+        {
+          "frame": 1562,
+          "kind": "fire",
+          "fields": {
+            "player": 1,
+            "device": 12,
+            "angle": 1.138467,
+            "power": 0.5,
+            "immediate": true
+          }
+        },
+        {
+          "frame": 2314,
+          "kind": "fire",
+          "fields": {
+            "player": 1,
+            "device": 12,
+            "angle": 0.8909033,
+            "power": 0.35223716,
+            "immediate": false
+          }
+        }
+      ]
+    }
+  ],
+  "blocks": 20,
+  "records": 2879,
+  "truncated": false,
+  "warnings": []
+}
