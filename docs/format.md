@@ -345,7 +345,7 @@ The binary layout below is known for header version 1383. It holds in all 8,967 
 All damage counters are f32, cumulative, finite and never negative.
 
 - **Dealt per team** at 1449 + 4 × slot, indexed like the team list. Slots past the last team in use hold garbage, so only slots in use mean anything. It counts damage to enemies only: friendly fire is not counted. In `damage-weapons.fwr`, machine gun rounds that hit the player's own cannon show in no counter, and side 2's damage taken equals team 1's dealt at every snapshot.
-- **Taken per side** at 1636 (side 1) and 1640 (side 2). It is the game's own counter and need not equal what the other side dealt: in 77 of 89 side comparisons in the replays it was at least that, mostly 0.93 to 1.3 times it, with outliers from 0.48 to 15.5.
+- **Taken per side** at 1636 (side 1) and 1640 (side 2). It is the game's own counter and need not equal what the other side dealt: in 77 of 89 side comparisons across the replays it is at least that, mostly 0.93 to 1.3 times it, with outliers from 0.48 to 15.5.
 - **Per player**, in the player slot block (below).
 
 Damage by weapon is not in the replay. The slot block's other fields are input state, and no other f32 in the payload holds a per-weapon total. Shots per weapon type can be counted from the fire commands (0xca, 0xdb), whose device IDs the device table maps to type IDs.
@@ -403,7 +403,7 @@ No other X occurs. An extended record, one longer than 157 bytes, holds the ASCI
 - the device count and the first device name's length, 8 bytes;
 - with no devices, the device count, the material count and the first material name's length, 12 bytes.
 
-So G is at least R - 12, and a decoder tries only the even lengths from R down to R - 12, at most seven. That costs at most seven walks of the device table, never one per byte of the run. Exactly one candidate parses in every snapshot. R - G is 0 in 8,964 snapshots and 4 in 3. The parser rejects a run longer than 1024 bytes.
+So G is at least R - 12, and a decoder tries only the even lengths from R down to R - 12, at most seven. Exactly one length parses in every snapshot. R - G is 0 in 8,964 snapshots and 4 in 3. The parser rejects a run longer than 1024 bytes.
 
 **Device table.** u32 count, then per device a header, a marker and a body. The header:
 
@@ -455,7 +455,7 @@ A strut belongs to node A's team, or to node B's when node A's team is 0 or belo
 
 ### Build progress
 
-The f32 before a device's marker. It is finite and never negative in all 436,240 device sightings of 104 replays.
+The f32 before a device's marker. It is finite and never negative in all 436,240 device sightings of 105 replays.
 
 - It counts seconds of construction. While a device is built it rises, mostly at 1 per second of game time but at times 2 to 16 times faster (4,153 of 25,625 rising intervals), and stops at the device's build time, which is not stored: for example 20 for a machine gun and 16 for a battery. With the fast-build option it ends at 2.0. Reactors hold 1.0.
 - It falls while a device is scrapped, at about 2 to 16 per second, and the device then vanishes. It also falls for other reasons and recovers its earlier value, so a fall alone is no sign of scrapping. Counting each device's first fall, 622 recovered with no scrap command (0xd6) naming the device, 176 ended with the device gone after a 0xd6 named it, and 33 ended with it gone and no 0xd6.
@@ -487,7 +487,7 @@ Known misclassifications:
 
 A device's build time is not stored, so the snapshot at which it finished is read from its build progress. Devices in the first snapshot, the starting forts, are left out. A device that appears later is followed from its first sighting. Its build finished at the first snapshot where the progress stands at its final value, once the next sighting confirms it:
 
-- the progress is the same (6,954 builds in 104 replays); or
-- the progress falls, and the rise into the final value was smaller than the seconds elapsed since the sighting before, so the device stopped within that interval (31 builds).
+- the progress is the same; or
+- the progress falls, and the rise into the final value was smaller than the seconds elapsed since the sighting before, so the device stopped within that interval.
 
-A fall after a full-rate rise confirms nothing: it is a build cancelled by scrapping (67 cases). A device destroyed or last seen while its progress still rises never finished. The finishing moment is accurate to one snapshot interval, 5 seconds.
+A fall after a full-rate rise confirms nothing: it is a build cancelled by scrapping. A device destroyed or last seen while its progress still rises never finished. The finishing moment is accurate to one snapshot interval, 5 seconds.
