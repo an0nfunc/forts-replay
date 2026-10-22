@@ -331,6 +331,56 @@ func TestInfo(t *testing.T) {
 	}
 }
 
+// TestInfoMaxCommands: --max-commands bounds the timeline entries and with
+// them the output, while counts stay complete.
+func TestInfoMaxCommands(t *testing.T) {
+	const n = 70000
+	s := fwrtest.Setup{
+		Map: "maps/Test/Test.fwe", Recorder: 1, RecorderTeam: 1,
+		Players: []fwrtest.Player{{Slot: 0, ID: 1, Team: 1, Name: "Alpha"}},
+	}
+	recs := [][]byte{fwrtest.Record(fwrtest.Tick(4), true), fwrtest.Record(fwrtest.Sync(2), false)}
+	ability := fwrtest.Record(fwrtest.Ability(1), false)
+	for range n {
+		recs = append(recs, ability)
+	}
+	file := write(t, t.TempDir(), "many.fwr", fwrtest.File(fwrtest.Header{Version: 1383, Frames: 2, Extra: s.Extra()}, bytes.Join(recs, nil)))
+	const cut = "timeline cut at"
+	for _, c := range []struct {
+		args    []string
+		entries int
+		cut     bool
+	}{
+		{nil, 1 << 16, true},
+		{[]string{"--max-commands", "100"}, 100, true},
+		{[]string{"--max-commands", "0"}, 0, false},
+	} {
+		code, out, errOut := runCmd(t, slices.Concat([]string{"info", "--json"}, c.args, []string{file})...)
+		var d struct {
+			Timelines []struct {
+				Counts   map[string]int    `json:"counts"`
+				Commands []json.RawMessage `json:"commands"`
+			} `json:"timelines"`
+		}
+		if err := json.Unmarshal([]byte(out), &d); code != 0 || err != nil || len(d.Timelines) != 1 {
+			t.Fatalf("%v: exit %d, %v, %d timelines", c.args, code, err, len(d.Timelines))
+		}
+		tl := d.Timelines[0]
+		if tl.Commands == nil || len(tl.Commands) != c.entries || tl.Counts["ability"] != n || strings.Contains(errOut, cut) != c.cut {
+			t.Errorf("%v: %d entries, counts %v, stderr %q", c.args, len(tl.Commands), tl.Counts, errOut)
+		}
+		if c.entries == 100 && len(out) >= 64<<10 {
+			t.Errorf("%v: %d bytes of output", c.args, len(out))
+		}
+	}
+	if code, _, errOut := runCmd(t, "info", "--json", "--max-commands", "-1", file); code != 2 || !strings.Contains(errOut, "usage: fwr info [--json] [--max-commands N] FILE") {
+		t.Errorf("-1: exit %d, stderr %q", code, errOut)
+	}
+	if code, out, _ := runCmd(t, "info", "--max-commands", "0", file); code != 0 || !strings.Contains(out, "\ncommands   player 1: ability=70000\n") {
+		t.Errorf("text: exit %d, %s", code, out)
+	}
+}
+
 func TestInfoJSON(t *testing.T) {
 	code, out, errOut := runCmd(t, "info", "--json", matchFile(t, t.TempDir(), true))
 	if code != 0 || errOut != "" {

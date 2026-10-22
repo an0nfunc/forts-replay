@@ -53,7 +53,7 @@ func usage(w io.Writer) {
 	fmt.Fprint(w, `usage: fwr <command> [flags] FILE
 
 commands:
-  info      summary: header fields, players, result, message counts, commands and build orders (--json)
+  info      summary: header fields, players, result, message counts, commands and build orders (--json, --max-commands)
   dump      list every message (--json, --type, --block, --lua)
   hex       align the payloads of one message type (--type, --max-bytes)
   extract   write the header and decompressed blocks to a directory (-o)
