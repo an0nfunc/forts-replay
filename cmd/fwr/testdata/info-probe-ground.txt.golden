@@ -10,3 +10,16 @@ records    719
 types      0x92=20 0x93=2 0x95=68 0x97=6 0xbe=307 0xc0=307 0xcb=4 0xe1=5
 syncs      307, last at frame 614
 commands   player 1: strut=2
+economy    team 1: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+economy    team 2: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+losses     team 1: weapons 0, other devices 0, struts 0
+losses     team 2: weapons 0, other devices 0, struts 0
+reactor    team 1: health 100.0
+reactor    team 2: health 100.0
+damage     team 1: dealt 0.0
+damage     team 2: dealt 0.0
+builds     team 1: 0
+builds     team 2: 0
+taken      side 1: 0.0
+taken      side 2: 0.0
+damage     player 1: 0.0, mean APM 8.0

@@ -1,4 +1,5 @@
 blk=0 off=0x00000 frame=- type=0xe1 len=62138 kf snapshot sections=7
+  state team=0 metal=1e+12/1e+12 floated=0 energy=1e+12/1e+12 floated=0 dealt=0 team=1 metal=600/600 floated=1.04 energy=3000/3000 floated=8.0001955 dealt=0 team=2 metal=600/600 floated=0 energy=3000/3000 floated=0 dealt=0 team=102 metal=600/600 floated=1.04 energy=3000/3000 floated=8.0001955 dealt=0 taken=0,0 slot=0 team=1 apm=0 damage=0 nodes=62 devices=8 links=138
 blk=0 off=0x0f2c6 frame=- type=0xbe len=28 tick target=4
 blk=0 off=0x0f2ea frame=2 type=0xc0 len=164 sync
 blk=0 off=0x0f396 frame=2 type=0x95 len=37 pointer {"player":1,"x":45.78174,"y":519.9866}
@@ -183,6 +184,7 @@ blk=0 off=0x1309a frame=126 type=0xc0 len=164 sync
 blk=0 off=0x13146 frame=126 type=0xbe len=28 tick target=130
 blk=0 off=0x1316a frame=128 type=0xc0 len=164 sync
 blk=1 off=0x00000 frame=128 type=0xe1 len=63233 snapshot sections=7
+  state team=0 metal=1e+12/1e+12 floated=0 energy=1e+12/1e+12 floated=0 dealt=0 team=1 metal=600/600 floated=67.080055 energy=3000/3000 floated=516.0121 dealt=0 team=2 metal=600/600 floated=0 energy=3000/3000 floated=0 dealt=0 team=102 metal=600/600 floated=43.384357 energy=3000/3000 floated=397.53354 dealt=0 taken=0,0 slot=0 team=1 apm=0 damage=0 nodes=63 devices=8 links=140
 blk=1 off=0x0f709 frame=128 type=0xbe len=28 tick target=132
 blk=1 off=0x0f72d frame=130 type=0xc0 len=164 sync
 blk=1 off=0x0f7d9 frame=130 type=0x95 len=37 pointer {"player":1,"x":-2755.3513,"y":-203.88025}
@@ -368,6 +370,7 @@ blk=1 off=0x133c3 frame=254 type=0xc0 len=164 sync
 blk=1 off=0x1346f frame=254 type=0xbe len=28 tick target=258
 blk=1 off=0x13493 frame=256 type=0xc0 len=164 sync
 blk=2 off=0x00000 frame=256 type=0xe1 len=63644 snapshot sections=7
+  state team=0 metal=1e+12/1e+12 floated=0 energy=1e+12/1e+12 floated=0 dealt=0 team=1 metal=600/600 floated=133.6406 energy=3000/3000 floated=1028.0277 dealt=0 team=2 metal=600/600 floated=0 energy=3000/3000 floated=0 dealt=0 team=102 metal=213.0001/600 floated=86.88799 energy=1100.0022/3000 floated=759.2619 dealt=0 taken=0,0 slot=0 team=1 apm=20 damage=0 nodes=63 devices=9 links=141
 blk=2 off=0x0f8a4 frame=256 type=0xbe len=28 tick target=260
 blk=2 off=0x0f8c8 frame=258 type=0xc0 len=164 sync
 blk=2 off=0x0f974 frame=258 type=0xbe len=28 tick target=262

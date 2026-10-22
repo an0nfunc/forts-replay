@@ -16,9 +16,11 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/an0nfunc/forts-replay/container"
 	"github.com/an0nfunc/forts-replay/lua"
 	"github.com/an0nfunc/forts-replay/msg"
 	"github.com/an0nfunc/forts-replay/snapshot"
+	"github.com/an0nfunc/forts-replay/state"
 )
 
 type dumpDoc struct {
@@ -35,6 +37,7 @@ type dumpDoc struct {
 	Payload       string       `json:"payload,omitempty"`
 	Error         string       `json:"error,omitempty"`
 	Sections      []sectionDoc `json:"sections,omitempty"`
+	State         any          `json:"state,omitempty"` // a snapshot's stateDoc, or its stateError
 }
 
 type sectionDoc struct {
@@ -44,6 +47,47 @@ type sectionDoc struct {
 	Table  *lua.Table `json:"table,omitempty"`
 	Error  string     `json:"error,omitempty"`
 }
+
+// stateDoc is what dump shows of a snapshot's decoded state.
+type stateDoc struct {
+	Teams   []teamDoc `json:"teams"` // team-list slots in use, team 0 included
+	Sides   []sideDoc `json:"sides"`
+	Slots   []slotDoc `json:"slots"` // occupied header player slots
+	Nodes   int       `json:"nodes"`
+	Devices int       `json:"devices"`
+	Links   int       `json:"links"`
+}
+
+type teamDoc struct {
+	Team          int32   `json:"team"`
+	Metal         float32 `json:"metal"`
+	Energy        float32 `json:"energy"`
+	MaxMetal      float32 `json:"max_metal"`
+	MaxEnergy     float32 `json:"max_energy"`
+	FloatedMetal  float32 `json:"floated_metal"`
+	FloatedEnergy float32 `json:"floated_energy"`
+	DamageDealt   float32 `json:"damage_dealt"`
+}
+
+type sideDoc struct {
+	Side        int     `json:"side"`
+	DamageTaken float32 `json:"damage_taken"`
+}
+
+type slotDoc struct {
+	Slot   int     `json:"slot"`
+	Team   int32   `json:"team"`
+	APM    float32 `json:"apm"`
+	Damage float32 `json:"damage"`
+}
+
+type stateError struct {
+	Error string `json:"error"`
+}
+
+// stateVersion is the header version whose snapshot state package state
+// decodes.
+const stateVersion = 1383
 
 type endDoc struct {
 	SchemaVersion int      `json:"schema_version"`
@@ -93,16 +137,17 @@ func runDump(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	w := bufio.NewWriter(stdout)
 	enc := json.NewEncoder(w)
+	var version uint32
 	show := func(it item) error {
 		if *block >= 0 && it.Block != *block || want != nil && !want[it.Record.Type] {
 			return nil
 		}
 		if *asJSON {
-			return enc.Encode(dumpDocFor(it))
+			return enc.Encode(dumpDocFor(it, version))
 		}
-		return writeText(w, it, *withLua)
+		return writeText(w, it, version, *withLua)
 	}
-	res, err := walk(ctx, fs.Arg(0), handlers{msg: show})
+	res, err := walk(ctx, fs.Arg(0), handlers{header: func(h container.Header) error { version = h.Version; return nil }, msg: show})
 	if err != nil {
 		w.Flush()
 		fmt.Fprintf(stderr, "fwr dump: %v\n", err)
@@ -127,7 +172,7 @@ func runDump(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-func dumpDocFor(it item) dumpDoc {
+func dumpDocFor(it item, version uint32) dumpDoc {
 	d := dumpDoc{
 		SchemaVersion: dumpSchemaVersion,
 		Block:         it.Block,
@@ -149,6 +194,11 @@ func dumpDocFor(it item) dumpDoc {
 				sd.Error = s.Err.Error()
 			}
 			d.Sections = append(d.Sections, sd)
+		}
+		if st, err := decodeState(version, m.Payload); err != nil {
+			d.State = stateError{err.Error()}
+		} else {
+			d.State = stateDocFor(st)
 		}
 		return d
 	case *msg.Invalid:
@@ -173,7 +223,7 @@ func dumpDocFor(it item) dumpDoc {
 	return d
 }
 
-func writeText(w io.Writer, it item, withLua bool) error {
+func writeText(w io.Writer, it item, version uint32, withLua bool) error {
 	frame := "-"
 	if it.Frame >= 0 {
 		frame = strconv.FormatInt(it.Frame, 10)
@@ -185,7 +235,7 @@ func writeText(w io.Writer, it item, withLua bool) error {
 	switch m := it.Msg.(type) {
 	case *msg.Snapshot:
 		snap := snapshot.Parse(m.Payload, lua.Limits{})
-		_, err := fmt.Fprintf(w, "%s snapshot sections=%d\n", head, len(snap.Sections))
+		_, err := fmt.Fprintf(w, "%s snapshot sections=%d\n  %s\n", head, len(snap.Sections), stateText(version, m.Payload))
 		if err != nil || !withLua {
 			return err
 		}
@@ -219,6 +269,56 @@ func writeText(w io.Writer, it item, withLua bool) error {
 		_, err = fmt.Fprintf(w, "%s %s %s\n", head, msg.KindName(m.MsgType()), printable(string(fields)))
 		return err
 	}
+}
+
+// decodeState decodes the state of a snapshot payload as match does.
+func decodeState(version uint32, payload []byte) (*state.State, error) {
+	if version != stateVersion {
+		return nil, fmt.Errorf("not decoded for version %d", version)
+	}
+	end, ok := snapshot.End(payload)
+	if !ok {
+		return nil, fmt.Errorf("%w: no Lua section", state.ErrCorrupt)
+	}
+	return state.Parse(payload, end)
+}
+
+func stateDocFor(st *state.State) stateDoc {
+	d := stateDoc{Teams: []teamDoc{}, Slots: []slotDoc{}, Nodes: len(st.Nodes), Devices: len(st.Devices), Links: len(st.Links)}
+	for _, t := range st.Teams {
+		d.Teams = append(d.Teams, teamDoc{t.ID, t.Metal, t.Energy, t.MaxMetal, t.MaxEnergy, t.FloatedMetal, t.FloatedEnergy, t.DamageDealt})
+	}
+	for k, taken := range st.DamageTaken {
+		d.Sides = append(d.Sides, sideDoc{k + 1, taken})
+	}
+	for k, sl := range st.Slots {
+		if sl.Team != 0 {
+			d.Slots = append(d.Slots, slotDoc{k, sl.Team, sl.APM, sl.Damage})
+		}
+	}
+	return d
+}
+
+// stateText is dump's line for a snapshot's state.
+func stateText(version uint32, payload []byte) string {
+	st, err := decodeState(version, payload)
+	if err != nil {
+		return "state error: " + printable(err.Error())
+	}
+	var b strings.Builder
+	b.WriteString("state")
+	for _, t := range st.Teams {
+		fmt.Fprintf(&b, " team=%d metal=%g/%g floated=%g energy=%g/%g floated=%g dealt=%g",
+			t.ID, t.Metal, t.MaxMetal, t.FloatedMetal, t.Energy, t.MaxEnergy, t.FloatedEnergy, t.DamageDealt)
+	}
+	fmt.Fprintf(&b, " taken=%g,%g", st.DamageTaken[0], st.DamageTaken[1])
+	for k, sl := range st.Slots {
+		if sl.Team != 0 {
+			fmt.Fprintf(&b, " slot=%d team=%d apm=%g damage=%g", k, sl.Team, sl.APM, sl.Damage)
+		}
+	}
+	fmt.Fprintf(&b, " nodes=%d devices=%d links=%d", len(st.Nodes), len(st.Devices), len(st.Links))
+	return b.String()
 }
 
 // printable escapes, as \xNN, every byte a terminal could act on: invalid

@@ -13,3 +13,16 @@ records    1283
 types      0x92=72 0x93=2 0x95=178 0x97=34 0xbe=487 0xc0=487 0xcc=4 0xce=10 0xe1=8 0xe6=1
 syncs      487, last at frame 974
 commands   player 1: delete_link=10 delete_node=4
+economy    team 1: floated metal 437.4, energy 3088.5; peak storage metal 600.0, energy 3000.0
+economy    team 102: floated metal 93.6, energy 793.0; peak storage metal 990.0, energy 3000.0
+losses     team 1: weapons 1, other devices 2, struts 29
+losses     team 102: weapons 0, other devices 0, struts 0
+reactor    team 1: health 0.0
+reactor    team 102: health 100.0
+damage     team 1: dealt 0.0
+damage     team 102: dealt 0.0
+builds     team 1: 0
+builds     team 102: 1
+taken      side 1: 698.9
+taken      side 2: 0.0
+damage     player 1: 0.0, mean APM 31.2
