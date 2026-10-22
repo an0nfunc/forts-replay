@@ -38,6 +38,207 @@
       "name": "commander-da-overclocker"
     }
   ],
+  "state": {
+    "frames": [
+      -1,
+      128,
+      256
+    ],
+    "teams": [
+      {
+        "team": 1,
+        "side": 1,
+        "metal": [
+          600,
+          600,
+          600
+        ],
+        "energy": [
+          3000,
+          3000,
+          3000
+        ],
+        "max_metal": [
+          600,
+          600,
+          600
+        ],
+        "max_energy": [
+          3000,
+          3000,
+          3000
+        ],
+        "floated_metal": [
+          1.04,
+          67.080055,
+          133.6406
+        ],
+        "floated_energy": [
+          8.0001955,
+          516.0121,
+          1028.0277
+        ],
+        "damage_dealt": [
+          0,
+          0,
+          0
+        ],
+        "reactor_health": [
+          100,
+          100,
+          100
+        ],
+        "struts": [
+          69,
+          69,
+          69
+        ],
+        "strut_hp": [
+          11100,
+          11100,
+          11100
+        ],
+        "struts_lost": [
+          0,
+          0,
+          0
+        ],
+        "nodes": [
+          31,
+          31,
+          31
+        ],
+        "devices": [
+          4,
+          4,
+          4
+        ],
+        "weapons": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "team": 102,
+        "side": 2,
+        "metal": [
+          600,
+          600,
+          213.0001
+        ],
+        "energy": [
+          3000,
+          3000,
+          1100.0022
+        ],
+        "max_metal": [
+          600,
+          600,
+          600
+        ],
+        "max_energy": [
+          3000,
+          3000,
+          3000
+        ],
+        "floated_metal": [
+          1.04,
+          43.384357,
+          86.88799
+        ],
+        "floated_energy": [
+          8.0001955,
+          397.53354,
+          759.2619
+        ],
+        "damage_dealt": [
+          0,
+          0,
+          0
+        ],
+        "reactor_health": [
+          100,
+          100,
+          100
+        ],
+        "struts": [
+          69,
+          71,
+          72
+        ],
+        "strut_hp": [
+          11100,
+          11400,
+          11300
+        ],
+        "struts_lost": [
+          0,
+          0,
+          0
+        ],
+        "nodes": [
+          31,
+          32,
+          32
+        ],
+        "devices": [
+          4,
+          4,
+          5
+        ],
+        "weapons": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "sides": [
+      {
+        "side": 1,
+        "damage_taken": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "side": 2,
+        "damage_taken": [
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "players": [
+      {
+        "slot": 0,
+        "team": [
+          1,
+          1,
+          1
+        ],
+        "damage": [
+          0,
+          0,
+          0
+        ],
+        "apm": [
+          0,
+          0,
+          20
+        ]
+      }
+    ]
+  },
+  "device_types": {
+    "0": "machinegun",
+    "30": "reactor",
+    "31": "mine",
+    "46": "armoury"
+  },
   "blocks": 3,
   "records": 392,
   "truncated": false,

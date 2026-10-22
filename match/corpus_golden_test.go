@@ -35,12 +35,31 @@ type corpusDigest struct {
 	AI            []AI                      `json:"ai,omitempty"`
 	Commanders    []Commander               `json:"commanders,omitempty"`
 	Result        *Result                   `json:"result,omitempty"`
+	State         *digestState              `json:"state,omitempty"`
 	Actions       map[uint32]map[string]int `json:"actions,omitempty"` // by player ID, then kind
 	Blocks        int                       `json:"blocks,omitempty"`
 	Records       map[string]int            `json:"records,omitempty"` // by record type
 	Invalid       int                       `json:"invalid,omitempty"`
 	Truncated     bool                      `json:"truncated,omitempty"`
 	Warnings      []string                  `json:"warnings,omitempty"`
+}
+
+// digestState is the end of the state series: each team's last floated
+// resources and damage dealt, each side's last damage taken, each player's
+// maximum damage, and the losses and struts lost.
+type digestState struct {
+	Teams      []digestTeam       `json:"teams"`
+	Taken      [2]float32         `json:"taken"`   // side 1, side 2
+	Players    map[uint32]float32 `json:"players"` // maximum damage by slot
+	Losses     int                `json:"losses"`
+	StrutsLost int                `json:"struts_lost"`
+}
+
+type digestTeam struct {
+	Team          int32   `json:"team"`
+	FloatedMetal  float32 `json:"floated_metal"`
+	FloatedEnergy float32 `json:"floated_energy"`
+	DamageDealt   float32 `json:"damage_dealt"`
 }
 
 type digestPlayer struct {
@@ -146,6 +165,23 @@ func digest(t *testing.T, path, rel string) corpusDigest {
 			SteamID:  p.SteamID != 0,
 			Recorder: p.Recorder,
 		})
+	}
+	if ss := s.State; ss != nil {
+		last := len(ss.Frames) - 1
+		ds := &digestState{
+			Teams: []digestTeam{}, Players: map[uint32]float32{}, Losses: len(s.Losses),
+			Taken: [2]float32{ss.Sides[0].DamageTaken[last], ss.Sides[1].DamageTaken[last]},
+		}
+		for _, ts := range ss.Teams {
+			ds.Teams = append(ds.Teams, digestTeam{ts.Team, ts.FloatedMetal[last], ts.FloatedEnergy[last], ts.DamageDealt[last]})
+			for _, n := range ts.StrutsLost {
+				ds.StrutsLost += n
+			}
+		}
+		for _, p := range ss.Players {
+			ds.Players[p.Slot] = max(ds.Players[p.Slot], slices.Max(p.Damage))
+		}
+		d.State = ds
 	}
 	for _, tl := range s.Timelines {
 		kinds := map[string]int{}

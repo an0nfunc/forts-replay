@@ -262,8 +262,11 @@ func matchFile(t *testing.T, dir string, ranked bool) string {
 		AI:         []fwrtest.AI{{Team: 1}, {Team: 202, Script: "maps/Test/ai.lua", Value: 2}},
 		Commanders: [2]string{"commander-test-alpha", "commander-test-beta"},
 	}
+	snap := func(text string) []byte {
+		return fwrtest.State{Lua: []string{text}, Nodes: []fwrtest.Node{{ID: 1, Kind: 0xff}}, Materials: []string{"m"}}.Payload()
+	}
 	recs := [][]byte{
-		fwrtest.Record(fwrtest.Snapshot("data = { gameFrame = 1, }"), true),
+		fwrtest.Record(snap("data = { gameFrame = 1, }"), true),
 		fwrtest.Record(fwrtest.Tick(4), false), fwrtest.Record(fwrtest.Sync(2), false),
 		fwrtest.Record(fwrtest.Ability(2), false),
 		fwrtest.Record(fwrtest.Tick(6), false), fwrtest.Record(fwrtest.Sync(4), false),
@@ -271,7 +274,7 @@ func matchFile(t *testing.T, dir string, ranked bool) string {
 	if ranked {
 		recs = append(recs, fwrtest.Record(fwrtest.Result(0, 1, 101, testSteamID), false))
 	}
-	recs = append(recs, fwrtest.Record(fwrtest.Snapshot("data = { gameEnded = true, gameWinner = 1, }"), false))
+	recs = append(recs, fwrtest.Record(snap("data = { gameEnded = true, gameWinner = 1, }"), false))
 	name := "multiplayer.fwr"
 	if ranked {
 		name = "ranked.fwr"

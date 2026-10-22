@@ -54,10 +54,14 @@ func FuzzBuild(f *testing.F) {
 		f.Add(fixtureFile(f, name))
 	}
 	f.Add(game(duel(true), fwrtest.Result(0, 1, 101, testSteamID), won(1)))
+	f.Add(stateReplay(1383, solo(), []fwrtest.State{
+		snap([]int32{0, 1, 2, 101}, []fwrtest.Device{dev(1, 101, "reactor"), dev(2, 101, "gun")}, nil, nil),
+		snap([]int32{0, 1, 2, 101}, []fwrtest.Device{dev(1, 101, "reactor")}, nil, nil),
+	}, [][]byte{fwrtest.Scrap(1, 101, 1), fwrtest.DeleteLink(1, 101, 1, 2)}))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		opts := Options{
 			Container: container.Limits{MaxBlock: 1 << 20, MaxTotal: 4 << 20},
-			Timeline:  Limits{MaxPlayers: 4, MaxCommands: 64},
+			Timeline:  Limits{MaxPlayers: 4, MaxCommands: 64, MaxStates: 4, MaxLosses: 4},
 		}
 		s, err := Build(t.Context(), bytes.NewReader(data), opts)
 		if err != nil {
@@ -72,6 +76,12 @@ func FuzzBuild(f *testing.F) {
 		}
 		if r := s.Result; r != nil && r.Winner != 1 && r.Winner != 2 {
 			t.Fatalf("winner %d", r.Winner)
+		}
+		if s.State != nil {
+			checkLengths(t, s.State)
+		}
+		if s.State != nil && len(s.State.Frames) > 4 || len(s.Losses) > 4 || len(s.DeviceTypes) > maxDeviceTypes {
+			t.Fatalf("state %+v, %d losses, %d device types", s.State, len(s.Losses), len(s.DeviceTypes))
 		}
 		if _, err := json.Marshal(s); err != nil {
 			t.Fatal(err)
