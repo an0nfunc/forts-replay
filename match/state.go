@@ -62,10 +62,9 @@ type PlayerSeries struct {
 
 // DeviceEvent is a device lost or finished at a snapshot.
 //
-// A loss is a device that vanished between two decoded snapshots without an
-// upgrade or move naming it in the last two snapshot intervals, and without
-// being scrapped; Frame is the snapshot it is missing from. The rule is
-// approximate.
+// A loss is a device that vanished between two decoded snapshots with no
+// sign that its owner removed it ("Destroyed or removed" in docs/format.md);
+// Frame is the snapshot it is missing from. The rule is approximate.
 //
 // A build is a device finished during the match; Frame is the first
 // snapshot at which its build progress stands at its final value, so it
@@ -80,10 +79,6 @@ type DeviceEvent struct {
 }
 
 const (
-	// stateVersion is the header version whose snapshot state package state
-	// decodes.
-	stateVersion = 1383
-
 	defaultMaxStates = 8192 // about 11 hours at one snapshot per 5 seconds
 	defaultMaxLosses = 1 << 16
 	defaultMaxBuilds = 1 << 16
@@ -109,7 +104,7 @@ const (
 // keeps only aggregates, the latest decoded snapshot's devices and struts,
 // and the build progress of its unfinished devices, never whole states.
 type stateBuilder struct {
-	decode    bool // the version is stateVersion
+	decode    bool // the version is state.Version
 	version   uint32
 	maxStates int
 	maxLosses int
@@ -155,7 +150,7 @@ type teamCols struct {
 	owned bool // owned a device at a kept point
 }
 
-// snapIndex is what losses need of one decoded snapshot.
+// snapIndex is what losses and builds need of one decoded snapshot.
 type snapIndex struct {
 	nextNode, nextDevice uint32
 	devices              []state.Device
@@ -237,7 +232,7 @@ func newWindow() window {
 
 func newStateBuilder(version uint32, h *header.Header, lim Limits, warnf func(format string, args ...any)) *stateBuilder {
 	sb := &stateBuilder{
-		decode: version == stateVersion, version: version, warnf: warnf,
+		decode: version == state.Version, version: version, warnf: warnf,
 		teams: map[int32]*teamCols{}, sides: [2]SideSeries{{Side: 1}, {Side: 2}},
 		older: newWindow(), recent: newWindow(), marks: map[uint32]bool{},
 		building: map[uint32]*building{}, types: map[uint16]string{},

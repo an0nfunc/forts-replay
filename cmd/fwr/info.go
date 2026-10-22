@@ -280,7 +280,7 @@ func writeState(row func(name, format string, args ...any), s *match.Summary) {
 	}
 }
 
-// playerLabel names the player on side 1 or 2 with slot.
+// playerLabel names the player on side 1 or 2 in slot, or else the slot.
 func playerLabel(players []match.Player, slot uint32) string {
 	for _, p := range players {
 		if p.Slot == slot && (p.Side == 1 || p.Side == 2) {

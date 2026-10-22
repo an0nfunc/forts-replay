@@ -85,10 +85,6 @@ type stateError struct {
 	Error string `json:"error"`
 }
 
-// stateVersion is the header version whose snapshot state package state
-// decodes.
-const stateVersion = 1383
-
 type endDoc struct {
 	SchemaVersion int      `json:"schema_version"`
 	Kind          string   `json:"kind"`
@@ -277,7 +273,7 @@ func writeText(w io.Writer, it item, version uint32, withLua bool) error {
 
 // decodeState decodes the state of a snapshot payload as match does.
 func decodeState(version uint32, payload []byte) (*state.State, error) {
-	if version != stateVersion {
+	if version != state.Version {
 		return nil, fmt.Errorf("not decoded for version %d", version)
 	}
 	end, ok := snapshot.End(payload)

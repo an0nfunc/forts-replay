@@ -12,6 +12,7 @@ import (
 
 	"github.com/an0nfunc/forts-replay/internal/fwrtest"
 	"github.com/an0nfunc/forts-replay/msg"
+	"github.com/an0nfunc/forts-replay/state"
 )
 
 // stateReplay returns a synthetic replay of version v from header setup s:
@@ -160,12 +161,12 @@ func TestStateTeams(t *testing.T) {
 	}
 }
 
-// TestLosses: a scrap, an upgrade and a move in the window are no losses,
-// including a scrap of a device created after the latest snapshot, and so
-// is a device scrapped three intervals before it vanishes. A device that
-// vanishes without one is, also when an upgrade named it before the
-// window, when a second scrap cancelled its scrap, or when its build
-// progress fell and recovered.
+// TestLosses: a scrap, an upgrade or a move in the window, also a scrap of a
+// device created after the latest snapshot, and a scrap three intervals
+// before the device vanishes all mean no loss. A device that vanishes
+// without one is lost, also when an upgrade named it before the window, a
+// second scrap cancelled its scrap, or its build progress fell and
+// recovered.
 func TestLosses(t *testing.T) {
 	devs := func(ids ...uint32) []fwrtest.Device {
 		var out []fwrtest.Device
@@ -213,7 +214,7 @@ func TestLosses(t *testing.T) {
 // snapshot's devices.
 func TestScrapMarks(t *testing.T) {
 	var warnings []string
-	sb := newStateBuilder(stateVersion, nil, Limits{}, func(format string, args ...any) {
+	sb := newStateBuilder(state.Version, nil, Limits{}, func(format string, args ...any) {
 		warnings = append(warnings, fmt.Sprintf(format, args...))
 	})
 	s0 := snap([]int32{101}, []fwrtest.Device{dev(1, 101, "store"), dev(2, 101, "store")}, nil, nil)
