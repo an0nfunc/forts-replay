@@ -27,7 +27,7 @@
     "i32": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647},
     "frame": {"type": "integer", "minimum": -1, "description": "Frame of the step the record was written in; -1 before the first."},
     "side": {"type": "integer", "minimum": 0, "maximum": 99, "description": "Team ID modulo 100: 1 or 2, 0 for a spectator."},
-    "kind": {"enum": ["place", "strut", "link", "delete_link", "delete_node", "scrap", "upgrade", "repair", "door", "fire", "fire_blocked", "ability", "repair_link", "repair_device", "repair_area", "portal_link", "portal_reverse", "fire_at", "ammo"]},
+    "kind": {"type": "string", "pattern": "^[a-z][a-z_]{0,31}$", "description": "Command kind: place, strut, link, delete_link, delete_node, scrap, upgrade, repair, door, fire, fire_blocked, ability, repair_link, repair_device, repair_area, portal_link, portal_reverse, fire_at or ammo. A later v1 release can add kinds; consumers skip entries and counts of kinds they do not know."},
     "player": {
       "type": "object",
       "required": ["id", "slot", "team", "side"],
@@ -65,7 +65,7 @@
       "required": ["player", "counts", "commands"],
       "properties": {
         "player": {"$ref": "#/$defs/u32"},
-        "counts": {"type": "object", "propertyNames": {"$ref": "#/$defs/kind"}, "additionalProperties": {"type": "integer", "minimum": 1}, "description": "Actions per kind, including those past the timeline limit."},
+        "counts": {"type": "object", "propertyNames": {"$ref": "#/$defs/kind"}, "additionalProperties": {"type": "integer", "minimum": 1}, "description": "Records per kind, including those past the timeline limit, without the first record of a strut or link pair, the start and end records of an immediate fire, repeated fire_blocked records and the doors the game opens and closes for a weapon. One area-repair drag writes several repair_area records, and one group fire one fire_at or fire per weapon."},
         "commands": {"type": "array", "items": {"$ref": "#/$defs/entry"}, "description": "In replay order, up to the timeline limit."}
       }
     },
