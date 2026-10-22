@@ -187,7 +187,7 @@ Types 0x92, 0x93, 0x95 and 0x97 carry state and are written only when it changes
 
 **0x93 (63 bytes).** In single-player games zero except u8@44 = 1, and the snapshot holds the same bytes, so it never changes there. In multiplayer games it changes often, up to about 4,500 records a game: u32@28, the four u32 from offset 44 and u8@60 vary, u32@24 repeats the player ID, and u32@32 to u32@40 stay 0. Meaning unknown.
 
-**0x97, APM (36 bytes).** f32@28 is the game's actions-per-minute figure: ten times the actions in the last 150 frames, sampled every 12 frames. Releasing a mouse button in the world counts as an action (a drag counts once), and so do camera keys. Clicks on the HUD and on context-menu items do not. u32@32 is 0. After a restart the figure starts high and decays, since actions from before the restart still count.
+**0x97, APM (36 bytes).** f32@28 is the game's actions-per-minute figure: ten times the actions in the last 150 frames, sampled every 12 frames. Releasing a mouse button in the world counts as an action (a drag counts once), and so do camera keys. Clicks on the HUD and on context-menu items do not. u32@32 is 0. After a restart the figure starts high and decays, since actions from before the restart still count. Snapshots hold the figure per player slot too (see "Player slots").
 
 ### Commands
 
@@ -229,7 +229,7 @@ Not recorded: camera moves, pause (paused time has no frames), weapon facing, ai
 
 ### IDs
 
-- **Type IDs** (0xd2 u32@32, 0x92 u8@44) index the match's table of weapons followed by devices. The table depends on the loaded options, not on the commander: the battery is 37 in a sandbox game and 38 in a skirmish whose options add `rapidfire`. Ammunition placed like a device has IDs past the weapons and devices (52 and 53 in a sandbox game). The parser reports type IDs as numbers.
+- **Type IDs** (0xd2 u32@32, 0x92 u8@44) index the match's table of weapons followed by devices. The table depends on the loaded options, not on the commander: the battery is 37 in a sandbox game and 38 in a skirmish whose options add `rapidfire`. Ammunition placed like a device has IDs past the weapons and devices (52 and 53 in a sandbox game). Commands carry only the number; a snapshot's device table pairs each type ID with the device's save-name (see "World state").
 - **Materials** (0xcb u32@52, 0xcd u32@44, 0x92 u8@43), by their build bar names: 0 bracing (the wood strut), 1 backbracing, 3 armour, 4 door, 6 shield, 7 rope, 9 portal.
 
 ## Script calls (type 0xe6)
@@ -299,7 +299,7 @@ Written with player 0, about every 60 seconds in lobby games and irregularly in 
 
 ## Snapshots (type 0xe1)
 
-A snapshot is binary world state with Lua tables embedded as text. Each Lua section is stored as `u32 length` followed by the text, which always starts with `data = `. Some sections are preceded by a script name stored the same way (`u32 length`, name bytes), for example `dlc_harpoon` and `dlc3`. The binary data between sections is not decoded yet. In v1.38.2 games on Abyss every snapshot has seven sections, and all sections carry the same `data.gameFrame` (see "Ticks and syncs").
+A snapshot is binary world state with Lua tables embedded as text. Each Lua section is stored as `u32 length` followed by the text, which always starts with `data = `. Some sections are preceded by a script name stored the same way (`u32 length`, name bytes), for example `dlc_harpoon` and `dlc3`. In v1.38.2 games on Abyss every snapshot has seven sections, and all sections carry the same `data.gameFrame` (see "Ticks and syncs").
 
 The Lua text follows the game's table serializer:
 
@@ -310,3 +310,184 @@ The Lua text follows the game's table serializer:
 - Functions, userdata and C functions cannot be written as values; they appear as comment lines such as `-- key = '!!!FUNCTION!!! name line'`, `'!!!USERDATA!!!'` and `'!!!CFUNCTION!!!'`.
 
 The first snapshot after the match ends adds `gameEnded = true` and `gameWinner = <side>` to the `data` table of several sections; earlier snapshots have neither key. Snapshots come every 5 seconds, so it can be up to that late. A replay that stops before it, such as one a player quit, has no winner in its snapshots; a ranked match still has its result record (type 0xbb).
+
+### Snapshot header
+
+The binary layout below is known for header version 1383. It holds in all 8,967 snapshots of 105 v1.38.2 replays. Offsets are into the payload, byte 0 being the type.
+
+| Offset | Type | Meaning |
+|---|---|---|
+| 61 | u32 | The ID the next node gets |
+| 65 | u32 | The ID the next device gets |
+| 81 | 19 × i32 | Team list, see below |
+| 229 | 19 × 12 bytes | Metal and energy held, per team |
+| 457 | 19 × 12 bytes | Storage cap, per team |
+| 1141 | 19 × 12 bytes | Floated: metal and energy lost to full storage, cumulative, per team |
+| 1449 | 19 × f32 | Damage dealt, per team (see "Damage") |
+| 1628 | 2 × f32 | 100 or 400. Unknown. |
+| 1636 | 2 × f32 | Damage taken: side 1, then side 2 |
+| 1652 | 9 × i32 | Team per player slot (see "Player slots") |
+| 1688 | 9 × 148 bytes | One block per player slot, up to offset 3020 |
+
+**Team list.** Slots 0, 1 and 2 hold teams 0, 1 and 2, then the fort teams follow in ascending order. An unused slot is 0xffffffff. Entry i of every per-team table belongs to slot i of the team list, so a decoder maps teams through the list, not by position.
+
+**Resources.** A per-team table entry is 12 bytes: u32 unused, f32 metal, f32 energy.
+
+- The held values equal the HUD.
+- The cap grows by 2000 energy for a battery as soon as it is placed, and by 300 metal for a metal store once it is built.
+- Floated resources rise at the team's income while it is at the cap and stop below it. A refund while storage is full floats too.
+- Team 0 holds 1e12 metal and energy, held and cap.
+- A destroyed fort's entries drop to 0 and stay there.
+- Values can drift a little below 0 (about -0.001). All are finite.
+
+### Damage
+
+All damage counters are f32, cumulative, finite and never negative.
+
+- **Dealt per team** at 1449 + 4 × slot, indexed like the team list. Slots past the last team in use hold garbage, so only slots in use mean anything. It counts damage to enemies only: friendly fire is not counted. In `damage-weapons.fwr`, machine gun rounds that hit the player's own cannon show in no counter, and side 2's damage taken equals team 1's dealt at every snapshot.
+- **Taken per side** at 1636 (side 1) and 1640 (side 2). It is the game's own counter and need not equal what the other side dealt: in 77 of 89 side comparisons in the replays it was at least that, mostly 0.93 to 1.3 times it, with outliers from 0.48 to 15.5.
+- **Per player**, in the player slot block (below).
+
+Damage by weapon is not in the replay. The slot block's other fields are input state, and no other f32 in the payload holds a per-weapon total. Shots per weapon type can be counted from the fire commands (0xca, 0xdb), whose device IDs the device table maps to type IDs.
+
+A second copy of each player's damage sits in the snapshot's player table before the first Lua section, after a list that is non-empty only in single-player games. The parser does not read it.
+
+### Player slots
+
+The nine player slots match the header's player entries: slot k belongs to the player whose entry has slot k. Slots can have gaps, for example 0, 1, 5 and 6.
+
+The i32 at 1652 + 4 × k is slot k's team: -3 for a spectator, 0 for an empty slot or a player who left.
+
+The 148-byte block at 1688 + 148 × k is all zero for an empty slot:
+
+| Offset | Type | Meaning |
+|---|---|---|
+| 132 | f32 | The game's APM figure, the one 0x97 carries, sampled at the snapshot |
+| 136 | 4 bytes | Unknown |
+| 140 | i32 | The player's current team; it follows fort switches |
+| 144 | f32 | The player's damage dealt, cumulative |
+
+The rest of the block copies the player's input state (0x92 hover, 0x95 pointer).
+
+- In every snapshot the team at 1652 equals the block's team, every team is 0, -3 or one of the team list, and a spectator's damage is 0.
+- A player who leaves gets team 0 in both places, and the block's damage drops to 0, while the team counter keeps it. A player's damage dealt is therefore the maximum of their series, not its last value.
+- A team's counter and its players' are close but not equal, and either can be larger. In `damage-weapons.fwr` the player ends at 8,496.6 and their team at 7,882.1.
+- The APM figure does not equal the latest 0x97 record at the snapshot's frame (they differ by up to 100), but per-player means over a match agree within 1.5 %.
+
+### World state
+
+The world state starts after the last Lua section. Its node table is the first `ff 20 20 20 20` after that point, preceded by the table's u32 node count, within 64 bytes of the section's end in every snapshot. The bytes before it are not decoded. Then come the node table, the item gap, the device table, the material table, the link table and a tail.
+
+**Node table.** u32 count (at least 1), u8 0xff, then per node the pad `20 20 20 20` and a record:
+
+| Offset | Type | Meaning |
+|---|---|---|
+| 0 | u32 | Node ID |
+| 4 | i32 | Team; 0 and -2 are neutral map structures |
+| 20 | f32 | x |
+| 24 | f32 | y |
+| 156 | u8 | X, which sets the record's length |
+
+| X | Record length |
+|---|---|
+| 0xff | 157 |
+| 1 on the table's last node | 157 |
+| 0, or 1 on any other node | 298 |
+| 2 | 371 |
+| 3 | 302 |
+
+No other X occurs. An extended record, one longer than 157 bytes, holds the ASCII `0000` at +162, which checks the length.
+
+**Item gap.** After the node table comes a run of 0 and 1 bytes, R bytes long. Its first G bytes are a gap whose length is not stored, and the device table follows the gap. G is the largest even number up to R at which the device table and the material table both parse. Past the gap, the run goes on only while the tables' first fields happen to hold bytes of 0 and 1, and the first name's printable bytes end it. So it takes in at most:
+
+- the device count and the first device name's length, 8 bytes;
+- with no devices, the device count, the material count and the first material name's length, 12 bytes.
+
+So G is at least R - 12, and a decoder tries only the even lengths from R down to R - 12, at most seven. That costs at most seven walks of the device table, never one per byte of the run. Exactly one candidate parses in every snapshot. R - G is 0 in 8,964 snapshots and 4 in 3. The parser rejects a run longer than 1024 bytes.
+
+**Device table.** u32 count, then per device a header, a marker and a body. The header:
+
+| Type | Meaning |
+|---|---|
+| u32 L, then L bytes | The device's save-name, 1 to 64 printable ASCII bytes, such as `reactor` or `machinegun` |
+| u32 | Team |
+| u32 | 0 or 1. Unknown. |
+| f32 | Build progress, see "Build progress" |
+| u32 | The marker, `de de de de` |
+
+Fields by offset from the marker:
+
+| Offset | Type | Meaning |
+|---|---|---|
+| +4 | u32 | Device ID |
+| +8 | i32 | Team |
+| +20 | u16 | Type ID (see "IDs") |
+| +24 | f32 | x |
+| +28 | f32 | y |
+| +36 | u32 | Node A ID, 0xffffffff on the ground |
+| +40 | u32 | Node B ID, 0xffffffff on the ground |
+| +44 | f32 | t. Candidate: the position from node A to node B, as in 0xd2. |
+| +48 | f32 | Current health; the maximum is not stored |
+
+The body is 168 bytes after the marker. When the 4 bytes after it, at +172, are `f1 f1 f1 f1`, the device is a weapon, and its body is 388 + 24 × n24 + 9 × (nA + nB) bytes after the marker: u32 n24 at +380 counts 24-byte beam entries, then come u32 nA and nA × 9 bytes, then u32 nB and nB × 9 bytes.
+
+Type IDs shift with the game options, as in commands, so a type ID names a device only within one replay; 81 names occur in the replays. A sequential walk of the device table always ends exactly at the material table.
+
+**Material table.** u32 n, 9 to 42 in the replays, then per material u32 L, a name of L printable bytes (1 to 64), and 4 flag bytes.
+
+**Link table.** For every node, in node table order, a u32 count and that many strut records:
+
+| Type | Meaning |
+|---|---|
+| u8 | Index of node B in node A's adjacency list |
+| u32 | Node B, an index into the node table |
+| u32 | Material, an index into the material table |
+| u32 n, then n × u32 | Unknown |
+| i32 | Device index, or -1. When it is 0 or more, a u8 follows, and when that u8 is 0, an f32 follows. |
+| i32 s | Fire segments: when s is above 0, s × 9 bytes follow |
+| 85 bytes | Body |
+
+The body starts with `01 01 01 01`; u32 +4 is the material again, f32 +8 the strut's current hit points (the maximum is not stored), and u8 +41 its state: 0 building, 1 finished, 2 repairing, 3 deconstructing, 4 to 6 shield and portal states.
+
+A strut belongs to node A's team, or to node B's when node A's team is 0 or below. Node indices shift between snapshots, so struts are matched across snapshots by their pair of node IDs.
+
+**Tail.** After the link table comes a tail of variable length: area effects, a player table, the music state, the winner and named floats. It is not decoded.
+
+### Build progress
+
+The f32 before a device's marker. It is finite and never negative in all 436,240 device sightings of 104 replays.
+
+- It counts seconds of construction. While a device is built it rises, mostly at 1 per second of game time but at times 2 to 16 times faster (4,153 of 25,625 rising intervals), and stops at the device's build time, which is not stored: for example 20 for a machine gun and 16 for a battery. With the fast-build option it ends at 2.0. Reactors hold 1.0.
+- It falls while a device is scrapped, at about 2 to 16 per second, and the device then vanishes. It also falls for other reasons and recovers its earlier value, so a fall alone is no sign of scrapping. Counting each device's first fall, 622 recovered with no scrap command (0xd6) naming the device, 176 ended with the device gone after a 0xd6 named it, and 33 ended with it gone and no 0xd6.
+- A second 0xd6 on the same device cancels the scrap: devices named twice recover.
+- Since the rate varies, the moment a build finished is known only to the snapshot interval. Of 4,034 intervals where progress rose by less than the time elapsed, 3,683 were followed by a flat interval, 150 by another rise, 34 by a fall and 167 by the device's last sighting.
+
+### Destroyed or removed
+
+When a device or strut is missing from the next snapshot, the replay does not say whether it was destroyed or its owner removed it. The parser reads it from the commands and the snapshots, as below. The rule is approximate. The window is the last two snapshot intervals: the commands since the snapshot before the previous one.
+
+A device was removed by its owner when any of these holds:
+
+- **Upgrade or move:** a 0xd5 upgrade, or a 0xd2 move (instance not -1), named its ID in the window. An upgrade replaces the device with a new instance.
+- **Being scrapped:** an odd number of 0xd6 scrap commands named it while it stood, however long ago. A second scrap cancels the first. Scrapping a large device takes longer than two snapshot intervals, so a window would miss it.
+- **Phantom placeholder:** it stands on a node pair (in either order, not on the ground), and a 0xd2 move by its team in the window has that pair as its destination (u32@36 and u32@40). A Phantom move creates a temporary device on the destination nodes, which vanishes once the moved device, keeping its ID, arrives there. Matching the command's nodes also covers a move that a second move replaced.
+- **Upgrade without a command:** in the snapshot where it is missing, a device of its team with a different name and an ID at or above the previous snapshot's next device ID (u32@65) stands on its node pair, and the window holds no new placement (0xd2 with instance -1) by that team on that pair. The AI's upgrades record no command. A replacement of the same name, or one the team placed there, is a rebuild after a loss, and the loss stands.
+
+Otherwise the device was lost. A weapon lost was sniped or fell with its fort.
+
+A strut was removed when its last state was 3 (deconstructing), or when a 0xce strut delete on its node pair or a 0xcc node delete on either of its nodes falls in the window. Otherwise it was lost.
+
+Known misclassifications:
+
+- A Phantom move on the ground (nodes 0 and 0) leaves a placeholder that no rule explains, which counts as lost.
+- A device lost in the same interval as a move onto its node pair counts as a placeholder, so the loss is missed.
+- A strut built and lost within one 5-second interval appears in no snapshot.
+
+### Finished builds
+
+A device's build time is not stored, so the snapshot at which it finished is read from its build progress. Devices in the first snapshot, the starting forts, are left out. A device that appears later is followed from its first sighting. Its build finished at the first snapshot where the progress stands at its final value, once the next sighting confirms it:
+
+- the progress is the same (6,954 builds in 104 replays); or
+- the progress falls, and the rise into the final value was smaller than the seconds elapsed since the sighting before, so the device stopped within that interval (31 builds).
+
+A fall after a full-rate rise confirms nothing: it is a build cancelled by scrapping (67 cases). A device destroyed or last seen while its progress still rises never finished. The finishing moment is accurate to one snapshot interval, 5 seconds.
