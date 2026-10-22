@@ -105,6 +105,9 @@ func TestTimelineFolding(t *testing.T) {
 		{40, &msg.FireStart{Input: p1, Device: 9}},
 		{42, &msg.Fire{Input: p1, Device: 9, Power: 0.5, Immediate: true}},
 		{80, &msg.FireEnd{Input: p1, Device: 9}},
+		{90, &msg.Door{Input: p1, Source: 3, Device: 9}}, // the game's, for a weapon: skipped
+		{92, &msg.Door{Input: p1, Source: 11}},
+		{94, &msg.Door{Input: p1, Source: 8}},
 	}
 	tl := NewTimeline(Limits{})
 	for _, a := range adds {
@@ -118,8 +121,8 @@ func TestTimelineFolding(t *testing.T) {
 	for _, e := range ps[0].Commands {
 		frames = append(frames, e.Frame)
 	}
-	want := map[byte]int{msg.TypeStrut: 1, msg.TypeLink: 1, msg.TypeFireBlocked: 3, msg.TypeFire: 1}
-	if !slices.Equal(frames, []int64{14, 20, 30, 32, 32, 42}) || !maps.Equal(ps[0].Counts, want) {
+	want := map[byte]int{msg.TypeStrut: 1, msg.TypeLink: 1, msg.TypeFireBlocked: 3, msg.TypeFire: 1, msg.TypeDoor: 2}
+	if !slices.Equal(frames, []int64{14, 20, 30, 32, 32, 42, 92, 94}) || !maps.Equal(ps[0].Counts, want) {
 		t.Errorf("frames %v, counts %v", frames, ps[0].Counts)
 	}
 }
@@ -142,5 +145,13 @@ func TestTimelineLimits(t *testing.T) {
 	w := strings.Join(tl.Warnings(), "; ")
 	if !strings.Contains(w, "timeline cut at 3 commands, 1 more counted only") || !strings.Contains(w, "2 commands from players beyond the first 2 ignored") {
 		t.Errorf("warnings %q", w)
+	}
+
+	none := NewTimeline(Limits{MaxCommands: -1})
+	for i := range 3 {
+		none.Add(int64(2*i), &msg.Scrap{Player: 1, Device: uint32(i)})
+	}
+	if ps := none.Players(); len(ps) != 1 || len(ps[0].Commands) != 0 || ps[0].Counts[msg.TypeScrap] != 3 || len(none.Warnings()) != 0 {
+		t.Errorf("keeping none: players %v, warnings %v", ps, none.Warnings())
 	}
 }

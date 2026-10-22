@@ -15,7 +15,7 @@ import (
 // Limits bound a Timeline. Zero fields take the defaults.
 type Limits struct {
 	MaxPlayers  int // distinct player values; default 16
-	MaxCommands int // timeline entries over all players; default 65536
+	MaxCommands int // timeline entries over all players; 0 takes the default 65536, a negative value keeps none
 }
 
 // Entry is one command of a timeline.
@@ -103,7 +103,7 @@ func NewTimeline(lim Limits) *Timeline {
 	if lim.MaxPlayers <= 0 {
 		lim.MaxPlayers = 16
 	}
-	if lim.MaxCommands <= 0 {
+	if lim.MaxCommands == 0 {
 		lim.MaxCommands = 1 << 16
 	}
 	return &Timeline{lim: lim, players: map[uint32]*PlayerTimeline{}}
@@ -112,7 +112,7 @@ func NewTimeline(lim Limits) *Timeline {
 // Add folds one decoded message, written in the step of frame. It keeps
 // commands only, and counts an action once: it skips the first record of a
 // strut or link pair, the start and end records around an immediate fire,
-// and a repeated FireBlocked.
+// a repeated FireBlocked, and a door the game opens or closes for a weapon.
 func (t *Timeline) Add(frame int64, m msg.Message) {
 	c, ok := m.(msg.Command)
 	if !ok {
@@ -129,6 +129,10 @@ func (t *Timeline) Add(frame int64, m msg.Message) {
 		}
 	case *msg.FireStart, *msg.FireEnd:
 		return
+	case *msg.Door:
+		if v.Device != 0 {
+			return
+		}
 	}
 	p := t.player(c.Sender())
 	if p == nil {
@@ -156,7 +160,7 @@ func (t *Timeline) Players() []*PlayerTimeline {
 // Warnings reports commands the limits left out.
 func (t *Timeline) Warnings() []string {
 	var w []string
-	if t.cut > 0 {
+	if t.cut > 0 && t.lim.MaxCommands > 0 {
 		w = append(w, fmt.Sprintf("timeline cut at %d commands, %d more counted only", t.lim.MaxCommands, t.cut))
 	}
 	if t.ignored > 0 {
