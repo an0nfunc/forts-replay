@@ -291,3 +291,227 @@ func Ability(player uint32) []byte {
 	binary.LittleEndian.PutUint32(p[20:], player)
 	return p
 }
+
+// State is the content of a snapshot payload with its binary state, as
+// Payload lays it out.
+type State struct {
+	NextNode, NextDevice uint32
+	Lua                  []string // section texts, each starting with "data = "
+	Teams                []Team   // team-list slots in order; the rest are unused
+	DamageTaken          [2]float32
+	Slots                [9]Slot
+	Nodes                []Node
+	Gap                  []byte // the item gap, 0 and 1 bytes for a valid one
+	Devices              []Device
+	Materials            []string
+	Links                []Link
+}
+
+// Team is one team-list slot and its counters.
+type Team struct {
+	ID                                 int32
+	Metal, Energy, MaxMetal, MaxEnergy float32
+	FloatedMetal, FloatedEnergy        float32
+	DamageDealt                        float32
+}
+
+// Slot is one header player slot.
+type Slot struct {
+	Team        int32
+	APM, Damage float32
+}
+
+// Node is one node record. Kind is the byte at +156 that sets its length:
+// 0xff for a plain record, 0 to 3 for an extended one (1 is plain on the
+// last node).
+type Node struct {
+	ID   uint32
+	Team int32
+	X, Y float32
+	Kind byte
+}
+
+// Device is one device; a weapon gets Beams 24-byte entries and A and B
+// 9-byte entries in its weapon block.
+type Device struct {
+	ID           uint32
+	Name         string
+	Team         int32
+	Type         uint16
+	X, Y         float32
+	NodeA, NodeB uint32
+	Health       float32
+	Weapon       bool
+	Beams, A, B  int
+}
+
+// Link is one strut from node index A to node index B. Device is the index
+// of a device on it, or -1; List is the strut's n list; Segments is its
+// fire segment count, and a negative count writes no segments.
+type Link struct {
+	A, B     int
+	Material uint32
+	HP       float32
+	State    byte
+	Device   int32
+	List     []uint32
+	Segments int
+}
+
+// Header offsets of the snapshot's binary state, as package state reads
+// them.
+const (
+	stNextNode  = 61
+	stTeams     = 81
+	stCurrent   = 229
+	stMaximum   = 457
+	stFloated   = 1141
+	stDealt     = 1449
+	stTaken     = 1636
+	stSlotTeams = 1652
+	stSlotBlock = 1688
+	stHeaderEnd = stSlotBlock + 9*148
+)
+
+// Payload returns the snapshot payload: the header tables, the Lua
+// sections, then the world state with a short preamble before the node
+// table and a minimal tail after the links.
+func (s State) Payload() []byte {
+	le := binary.LittleEndian
+	f32 := func(b []byte, off int, v float32) { le.PutUint32(b[off:], math.Float32bits(v)) }
+	p := make([]byte, stHeaderEnd)
+	p[0] = 0xe1
+	le.PutUint32(p[stNextNode:], s.NextNode)
+	le.PutUint32(p[stNextNode+4:], s.NextDevice)
+	for i := range 19 {
+		le.PutUint32(p[stTeams+4*i:], 0xffffffff)
+	}
+	for i, t := range s.Teams {
+		le.PutUint32(p[stTeams+4*i:], uint32(t.ID))
+		f32(p, stCurrent+12*i+4, t.Metal)
+		f32(p, stCurrent+12*i+8, t.Energy)
+		f32(p, stMaximum+12*i+4, t.MaxMetal)
+		f32(p, stMaximum+12*i+8, t.MaxEnergy)
+		f32(p, stFloated+12*i+4, t.FloatedMetal)
+		f32(p, stFloated+12*i+8, t.FloatedEnergy)
+		f32(p, stDealt+4*i, t.DamageDealt)
+	}
+	f32(p, stTaken, s.DamageTaken[0])
+	f32(p, stTaken+4, s.DamageTaken[1])
+	for k, sl := range s.Slots {
+		blk := stSlotBlock + 148*k
+		le.PutUint32(p[stSlotTeams+4*k:], uint32(sl.Team))
+		f32(p, blk+132, sl.APM)
+		le.PutUint32(p[blk+140:], uint32(sl.Team))
+		f32(p, blk+144, sl.Damage)
+	}
+	return s.rest(p)
+}
+
+// rest appends the Lua sections and the world state to the header tables
+// p.
+func (s State) rest(p []byte) []byte {
+	le := binary.LittleEndian
+	f32 := func(v float32) { p = le.AppendUint32(p, math.Float32bits(v)) }
+	for _, text := range s.Lua {
+		p = le.AppendUint32(p, uint32(len(text)))
+		p = append(p, text...)
+	}
+	p = append(p, 0x16, 0, 0, 0, 0xcd, 0xcc, 0xcc, 0x3e) // preamble, not decoded
+	p = le.AppendUint32(p, uint32(len(s.Nodes)))
+	p = append(p, 0xff)
+	for i, n := range s.Nodes {
+		p = append(p, "    "...)
+		size := 157
+		switch {
+		case n.Kind == 1 && i == len(s.Nodes)-1:
+		case n.Kind <= 1:
+			size = 298
+		case n.Kind == 2:
+			size = 371
+		case n.Kind == 3:
+			size = 302
+		}
+		rec := make([]byte, size)
+		le.PutUint32(rec, n.ID)
+		le.PutUint32(rec[4:], uint32(n.Team))
+		le.PutUint32(rec[20:], math.Float32bits(n.X))
+		le.PutUint32(rec[24:], math.Float32bits(n.Y))
+		rec[156] = n.Kind
+		if size > 157 {
+			copy(rec[162:], "0000")
+		}
+		p = append(p, rec...)
+	}
+	p = append(p, s.Gap...)
+	p = le.AppendUint32(p, uint32(len(s.Devices)))
+	for _, d := range s.Devices {
+		p = le.AppendUint32(p, uint32(len(d.Name)))
+		p = append(p, d.Name...)
+		p = le.AppendUint32(p, uint32(d.Team))
+		p = le.AppendUint32(p, 0)
+		f32(1)
+		p = le.AppendUint32(p, 0xdededede)
+		body := make([]byte, 168)
+		le.PutUint32(body, d.ID)
+		le.PutUint32(body[4:], uint32(d.Team))
+		le.PutUint16(body[16:], d.Type)
+		le.PutUint32(body[20:], math.Float32bits(d.X))
+		le.PutUint32(body[24:], math.Float32bits(d.Y))
+		le.PutUint32(body[32:], d.NodeA)
+		le.PutUint32(body[36:], d.NodeB)
+		le.PutUint32(body[44:], math.Float32bits(d.Health))
+		p = append(p, body...)
+		if d.Weapon {
+			w := make([]byte, 376-168)
+			copy(w, []byte{0xf1, 0xf1, 0xf1, 0xf1})
+			p = append(p, w...)
+			p = le.AppendUint32(p, uint32(d.Beams))
+			p = append(p, make([]byte, 24*d.Beams)...)
+			p = le.AppendUint32(p, uint32(d.A))
+			p = append(p, make([]byte, 9*d.A)...)
+			p = le.AppendUint32(p, uint32(d.B))
+			p = append(p, make([]byte, 9*d.B)...)
+		}
+	}
+	p = le.AppendUint32(p, uint32(len(s.Materials)))
+	for _, m := range s.Materials {
+		p = le.AppendUint32(p, uint32(len(m)))
+		p = append(p, m...)
+		p = append(p, 1, 0, 0, 0)
+	}
+	byNode := make([][]Link, len(s.Nodes))
+	for _, l := range s.Links {
+		byNode[l.A] = append(byNode[l.A], l)
+	}
+	for _, out := range byNode {
+		p = le.AppendUint32(p, uint32(len(out)))
+		for j, l := range out {
+			p = append(p, byte(j))
+			p = le.AppendUint32(p, uint32(l.B))
+			p = le.AppendUint32(p, l.Material)
+			p = le.AppendUint32(p, uint32(len(l.List)))
+			for _, v := range l.List {
+				p = le.AppendUint32(p, v)
+			}
+			p = le.AppendUint32(p, uint32(l.Device))
+			if l.Device >= 0 {
+				p = append(p, 0)
+				f32(0.5)
+			}
+			p = le.AppendUint32(p, uint32(l.Segments))
+			p = append(p, make([]byte, 9*max(l.Segments, 0))...)
+			body := make([]byte, 85)
+			le.PutUint32(body, 0x01010101)
+			le.PutUint32(body[4:], l.Material)
+			le.PutUint32(body[8:], math.Float32bits(l.HP))
+			body[41] = l.State
+			p = append(p, body...)
+		}
+	}
+	// The tail: no area effects or players, winner -1, no music state or
+	// named floats.
+	p = append(p, make([]byte, 4+4+4+6)...)
+	p = le.AppendUint32(p, 0xffffffff)
+	return append(p, make([]byte, 4+4+4)...)
+}
