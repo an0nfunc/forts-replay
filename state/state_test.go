@@ -8,6 +8,7 @@ import (
 	"errors"
 	"math"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -213,8 +214,8 @@ func corruptFields(t *testing.T) {
 		{"name above cap", false, func(s *fwrtest.State) { s.Devices[0].Name = strings.Repeat("r", maxName+1) }},
 		{"empty name", false, func(s *fwrtest.State) { s.Devices[2].Name = "" }},
 		{"name not printable", false, func(s *fwrtest.State) { s.Devices[2].Name = "batt\x00ry" }},
-		{"materials at cap", true, func(s *fwrtest.State) { s.Materials = materials(maxMaterials) }},
-		{"materials above cap", false, func(s *fwrtest.State) { s.Materials = materials(maxMaterials + 1) }},
+		{"materials at cap", true, func(s *fwrtest.State) { s.Materials = slices.Repeat([]string{"m"}, maxMaterials) }},
+		{"materials above cap", false, func(s *fwrtest.State) { s.Materials = slices.Repeat([]string{"m"}, maxMaterials+1) }},
 		{"no materials", false, func(s *fwrtest.State) { s.Materials = nil }},
 		{"empty material name", false, func(s *fwrtest.State) { s.Materials[1] = "" }},
 		{"material name above cap", false, func(s *fwrtest.State) { s.Materials[1] = strings.Repeat("m", maxName+1) }},
@@ -326,14 +327,6 @@ func devices(n int) []fwrtest.Device {
 	out := make([]fwrtest.Device, n)
 	for i := range out {
 		out[i] = fwrtest.Device{ID: uint32(i), Name: "store", Team: 1}
-	}
-	return out
-}
-
-func materials(n int) []string {
-	out := make([]string, n)
-	for i := range out {
-		out[i] = "m"
 	}
 	return out
 }

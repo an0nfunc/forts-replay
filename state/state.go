@@ -148,8 +148,7 @@ func Parse(payload []byte, start int) (*State, error) {
 // use are read.
 func (s *State) header(b []byte) error {
 	for i := range teamSlots {
-		id := u32At(b, teamListAt+4*i)
-		if id == unusedTeam {
+		if u32At(b, teamListAt+4*i) == unusedTeam {
 			continue
 		}
 		t := Team{

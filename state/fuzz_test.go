@@ -50,8 +50,8 @@ func FuzzParse(f *testing.F) {
 		if !finite(s.DamageTaken[:]...) {
 			t.Fatalf("taken %v", s.DamageTaken)
 		}
+		bad := func(r rune) bool { return r > unicode.MaxASCII || !unicode.IsPrint(r) }
 		for _, d := range s.Devices {
-			bad := func(r rune) bool { return r > unicode.MaxASCII || !unicode.IsPrint(r) }
 			if d.Name == "" || len(d.Name) > maxName || strings.ContainsFunc(d.Name, bad) || !finite(d.Health, d.Progress) {
 				t.Fatalf("device %+v", d)
 			}

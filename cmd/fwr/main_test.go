@@ -420,11 +420,11 @@ func TestInfoMaxStates(t *testing.T) {
 		Map: "maps/Test/Test.fwe", Recorder: 1, RecorderTeam: 101,
 		Players: []fwrtest.Player{{Slot: 0, ID: 1, Team: 101, Name: "Alpha"}},
 	}
+	dev := func(id uint32, typ uint16, name string) fwrtest.Device {
+		return fwrtest.Device{ID: id, Name: name, Team: 101, Type: typ, Health: 100, Progress: 1, NodeA: ground, NodeB: ground}
+	}
 	snaps := make([]fwrtest.State, n)
 	for k := range snaps {
-		dev := func(id uint32, typ uint16, name string) fwrtest.Device {
-			return fwrtest.Device{ID: id, Name: name, Team: 101, Type: typ, Health: 100, Progress: 1, NodeA: ground, NodeB: ground}
-		}
 		devs := []fwrtest.Device{dev(1, 0, "reactor"), dev(uint32(10+k), 1, "store")}
 		if k > 0 {
 			devs = append(devs, dev(uint32(9+k), 1, "store"))
@@ -673,15 +673,15 @@ func TestDumpState(t *testing.T) {
 		"v1331.fwr": {1331, st.Payload(), "not decoded for version 1331"},
 		"lua.fwr":   {1383, fwrtest.Snapshot("data = { }"), "state: corrupt"},
 	} {
-		f, v, msg := write(t, dir, name, fwrtest.File(fwrtest.Header{Version: c.version}, fwrtest.Record(c.payload, true))), c.version, c.msg
+		f := write(t, dir, name, fwrtest.File(fwrtest.Header{Version: c.version}, fwrtest.Record(c.payload, true)))
 		_, out, _ := runCmd(t, "dump", "--json", f)
 		d := jsonLines(t, out)[0]
 		e, _ := d["state"].(map[string]any)
-		if len(e) != 1 || !strings.HasPrefix(fmt.Sprint(e["error"]), msg) {
-			t.Errorf("version %d: state %v", v, d["state"])
+		if len(e) != 1 || !strings.HasPrefix(fmt.Sprint(e["error"]), c.msg) {
+			t.Errorf("version %d: state %v", c.version, d["state"])
 		}
-		if _, out, _ := runCmd(t, "dump", f); !strings.Contains(out, "\n  state error: "+msg) {
-			t.Errorf("version %d: text %q", v, out)
+		if _, out, _ := runCmd(t, "dump", f); !strings.Contains(out, "\n  state error: "+c.msg) {
+			t.Errorf("version %d: text %q", c.version, out)
 		}
 	}
 }

@@ -17,11 +17,15 @@ import (
 // stateReplay returns a synthetic replay of version v from header setup s:
 // snapshot i at frame 10(i+1), followed by the payloads in cmds[i].
 func stateReplay(v uint32, s fwrtest.Setup, snaps []fwrtest.State, cmds ...[][]byte) []byte {
-	payloads := make([][]byte, len(snaps))
+	return snapReplay(v, s, payloads(snaps), cmds...)
+}
+
+func payloads(snaps []fwrtest.State) [][]byte {
+	out := make([][]byte, len(snaps))
 	for i, st := range snaps {
-		payloads[i] = st.Payload()
+		out[i] = st.Payload()
 	}
-	return snapReplay(v, s, payloads, cmds...)
+	return out
 }
 
 // snapReplay is stateReplay with the snapshot payloads given.
@@ -461,10 +465,7 @@ func nodeRun(n int) []fwrtest.Node {
 // order), a node delete, or a deconstruction already under way are not
 // lost; one that vanishes without them is.
 func TestStrutsLost(t *testing.T) {
-	var nodes []fwrtest.Node
-	for i := range uint32(9) {
-		nodes = append(nodes, fwrtest.Node{ID: i + 1, Team: 101, Kind: 0xff})
-	}
+	nodes := nodeRun(9)
 	nodes[8].Team = 0 // a strut from it counts for node B's team
 	link := func(a, b int, hp float32, state byte) fwrtest.Link {
 		return fwrtest.Link{A: a, B: b, HP: hp, State: state, Device: -1}
@@ -501,16 +502,13 @@ func TestBuildStateErrors(t *testing.T) {
 		snap([]int32{101}, two, nil, nil), snap([]int32{101}, two, nil, nil), snap([]int32{101}, two, nil, nil),
 		snap([]int32{101}, two, nil, nil), snap([]int32{101}, nil, nil, nil),
 	}
-	payloads := make([][]byte, len(good))
-	for i, st := range good {
-		payloads[i] = st.Payload()
-	}
+	snaps := payloads(good)
 	noNodes := good[2]
 	noNodes.Nodes = []fwrtest.Node{}
-	payloads[2] = noNodes.Payload()
-	payloads[3] = fwrtest.Snapshot("data = { }") // ends inside the header tables
-	cmds := [][][]byte{nil, nil, {fwrtest.Ability(1)}, {fwrtest.Scrap(1, 101, 1), fwrtest.Ability(1)}}
-	s := buildFile(t, snapReplay(1383, solo(), payloads, cmds...))
+	snaps[2] = noNodes.Payload()
+	snaps[3] = fwrtest.Snapshot("data = { }") // ends inside the header tables
+	cmds := [][][]byte{nil, {fwrtest.Upgrade(1, 101, 1)}, {fwrtest.Ability(1)}, {fwrtest.Ability(1)}}
+	s := buildFile(t, snapReplay(1383, solo(), snaps, cmds...))
 	ref := buildFile(t, stateReplay(1383, solo(), good, cmds...))
 	if len(s.Warnings) != 1 || !strings.HasPrefix(s.Warnings[0], "snapshot state does not decode in 2 snapshots; the first, at frame 30: state: corrupt") {
 		t.Errorf("warnings %q", s.Warnings)
