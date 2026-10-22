@@ -25,7 +25,7 @@ func TestCorpus(t *testing.T) {
 		t.Skip("FWR_CORPUS not set")
 	}
 	n := 0
-	var snaps, failed, losses, weapons, strutsLost, types int
+	var snaps, failed, losses, weapons, builds, strutsLost, types int
 	names := map[string]bool{}
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error { //nolint:gosec // G703: the developer names the corpus in FWR_CORPUS
 		if err != nil || d.IsDir() || filepath.Ext(path) != ".fwr" {
@@ -68,6 +68,7 @@ func TestCorpus(t *testing.T) {
 		snaps += fileSnaps
 		failed += fileFailed
 		losses += len(s.Losses)
+		builds += len(s.Builds)
 		for _, l := range s.Losses {
 			if l.Weapon {
 				weapons++
@@ -89,6 +90,6 @@ func TestCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%d replays; %d snapshots, %d state decode errors; %d losses (%d weapons), %d struts lost; %d device types (%d names)",
-		n, snaps, failed, losses, weapons, strutsLost, types, len(names))
+	t.Logf("%d replays; %d snapshots, %d state decode errors; %d losses (%d weapons), %d builds, %d struts lost; %d device types (%d names)",
+		n, snaps, failed, losses, weapons, builds, strutsLost, types, len(names))
 }

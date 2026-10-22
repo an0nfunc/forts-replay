@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/an0nfunc/forts-replay/internal/fwrtest"
+	"github.com/an0nfunc/forts-replay/msg"
 )
 
 // stateReplay returns a synthetic replay of version v from header setup s:
@@ -156,9 +157,11 @@ func TestStateTeams(t *testing.T) {
 }
 
 // TestLosses: a scrap, an upgrade and a move in the window are no losses,
-// including a scrap of a device created after the latest snapshot; a
-// device that vanishes without one is, also when a command named it
-// before the window.
+// including a scrap of a device created after the latest snapshot, and so
+// is a device scrapped three intervals before it vanishes. A device that
+// vanishes without one is, also when an upgrade named it before the
+// window, when a second scrap cancelled its scrap, or when its build
+// progress fell and recovered.
 func TestLosses(t *testing.T) {
 	devs := func(ids ...uint32) []fwrtest.Device {
 		var out []fwrtest.Device
@@ -172,24 +175,169 @@ func TestLosses(t *testing.T) {
 		return out
 	}
 	snaps := []fwrtest.State{
-		snap([]int32{101}, devs(10, 11, 12, 13, 14, 15), nil, nil),
-		snap([]int32{101}, devs(10, 11, 12, 13, 14, 15, 20), nil, nil),
-		snap([]int32{101}, devs(14, 15, 21), nil, nil),
+		snap([]int32{101}, devs(10, 11, 12, 13, 14, 15, 16, 17, 18), nil, nil),
+		snap([]int32{101}, devs(10, 11, 12, 13, 14, 15, 16, 17, 18, 20), nil, nil),
+		snap([]int32{101}, devs(14, 15, 16, 17, 18, 21), nil, nil),
 		snap([]int32{101}, devs(21), nil, nil),
 	}
 	snaps[0].NextDevice, snaps[1].NextDevice, snaps[2].NextDevice, snaps[3].NextDevice = 20, 21, 22, 22
+	for i, p := range []float32{5, 3, 5} { // device 18 dips and recovers
+		ds := snaps[i].Devices
+		ds[slices.IndexFunc(ds, func(d fwrtest.Device) bool { return d.ID == 18 })].Progress = p
+	}
 	cmds := [][][]byte{{
 		fwrtest.Scrap(1, 101, 10), fwrtest.Upgrade(1, 101, 11), fwrtest.Place(1, 101, 3, 0, 0, 12),
-		fwrtest.Place(1, 101, 3, 0, 0, -1), fwrtest.Scrap(1, 101, 20), fwrtest.Scrap(1, 101, 15),
-	}}
+		fwrtest.Place(1, 101, 3, 0, 0, -1), fwrtest.Scrap(1, 101, 20), fwrtest.Upgrade(1, 101, 15),
+		fwrtest.Scrap(1, 101, 16), fwrtest.Scrap(1, 101, 17),
+	}, {fwrtest.Scrap(1, 101, 17)}}
 	s := buildFile(t, stateReplay(1383, solo(), snaps, cmds...))
-	want := []Loss{
+	want := []DeviceEvent{
 		{Frame: 30, Team: 101, Device: 13, TypeID: 2, Name: "gun", Weapon: true},
 		{Frame: 40, Team: 101, Device: 14, TypeID: 3, Name: "store"},
 		{Frame: 40, Team: 101, Device: 15, TypeID: 3, Name: "store"},
+		{Frame: 40, Team: 101, Device: 17, TypeID: 3, Name: "store"},
+		{Frame: 40, Team: 101, Device: 18, TypeID: 3, Name: "store"},
 	}
 	if !reflect.DeepEqual(s.Losses, want) || len(s.Warnings) != 0 {
 		t.Errorf("losses %+v, warnings %q", s.Losses, s.Warnings)
+	}
+}
+
+// TestScrapMarks: scraps naming devices created after the latest decoded
+// snapshot count against the window's cap, with one warning; those naming
+// its devices always count; marks are pruned to the next decoded
+// snapshot's devices.
+func TestScrapMarks(t *testing.T) {
+	var warnings []string
+	sb := newStateBuilder(stateVersion, nil, Limits{}, func(format string, args ...any) {
+		warnings = append(warnings, fmt.Sprintf(format, args...))
+	})
+	s0 := snap([]int32{101}, []fwrtest.Device{dev(1, 101, "store"), dev(2, 101, "store")}, nil, nil)
+	s0.NextDevice = 10
+	sb.snapshot(10, s0.Payload())
+	for i := range 20000 {
+		sb.command(&msg.Scrap{Device: 10 + uint32(i)})
+	}
+	sb.command(&msg.Scrap{Device: 1})
+	if len(sb.marks) != maxNewIDs+1 || !sb.marks[1] || sb.marks[10+maxNewIDs] {
+		t.Errorf("%d marks, device 1 %v", len(sb.marks), sb.marks[1])
+	}
+	s1 := snap([]int32{101}, []fwrtest.Device{dev(2, 101, "store"), dev(10, 101, "store")}, nil, nil)
+	s1.NextDevice = 11
+	sb.snapshot(20, s1.Payload())
+	if !reflect.DeepEqual(sb.marks, map[uint32]bool{10: true}) || sb.losses != nil {
+		t.Errorf("marks %v, losses %+v", sb.marks, sb.losses)
+	}
+	sb.finish(&Summary{})
+	want := []string{fmt.Sprintf("loss window cut at %d commands naming new objects per snapshot interval, %d more ignored", maxNewIDs, 20000-maxNewIDs)}
+	if !slices.Equal(warnings, want) {
+		t.Errorf("warnings %q", warnings)
+	}
+}
+
+// TestWindowCap: upgrades, moves, new placements, strut deletes and node
+// deletes naming objects created after the latest decoded snapshot count
+// against the window's cap, with one warning. TestScrapMarks covers scraps.
+func TestWindowCap(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		cmd  func(i uint32) msg.Message
+	}{
+		{"upgrade", func(i uint32) msg.Message { return &msg.Upgrade{Team: 101, Device: 100 + i} }},
+		{"move", func(i uint32) msg.Message {
+			return &msg.Place{Team: 101, NodeA: 1, NodeB: 2 + i, MovedDevice: int32(100 + i)}
+		}},
+		{"new placement", func(i uint32) msg.Message { return &msg.Place{Team: 101, NodeA: 1, NodeB: 100 + i, MovedDevice: -1} }},
+		{"delete_link", func(i uint32) msg.Message { return &msg.DeleteLink{Team: 101, NodeA: 100 + i, NodeB: 1} }},
+		{"delete_node", func(i uint32) msg.Message { return &msg.DeleteNode{Team: 101, Node: 100 + i} }},
+	} {
+		var warnings []string
+		sb := newStateBuilder(1383, nil, Limits{}, func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		})
+		sb.snapshot(10, snap([]int32{101}, []fwrtest.Device{dev(1, 101, "store")}, nil, nil).Payload())
+		for i := range uint32(20000) {
+			sb.command(c.cmd(i))
+		}
+		w := sb.recent
+		n := len(w.devices) + len(w.pairs) + len(w.nodes) + len(w.moves) + len(w.places)
+		sb.finish(&Summary{})
+		if n > maxNewIDs || len(warnings) != 1 || !strings.HasPrefix(warnings[0], fmt.Sprintf("loss window cut at %d commands", maxNewIDs)) {
+			t.Errorf("%s: %d window entries, warnings %q", c.name, n, warnings)
+		}
+	}
+}
+
+// TestBuilds: a build is confirmed by a flat sighting, or by a fall after a
+// rise slower than the time elapsed, at the frame of its final value. A
+// device destroyed or last seen while rising, cancelled after a full-rate
+// rise, or first seen falling gets none, and so do the starting forts.
+// MaxBuilds keeps the earliest confirmed.
+func TestBuilds(t *testing.T) {
+	// Progress per snapshot, -1 when absent; snapshots are 0.4 s apart.
+	const gone = -1
+	devices := []struct {
+		dev      fwrtest.Device
+		progress []float32
+	}{
+		{dev(1, 101, "reactor"), []float32{1, 1, 1, 1, 1, 1}},             // starting fort
+		{dev(100, 101, "gun"), []float32{gone, 1, 2, 3, 3, 3}},            // finished at frame 40
+		{dev(101, 101, "store"), []float32{gone, 1, 2, gone}},             // destroyed while rising
+		{dev(102, 101, "store"), []float32{gone, gone, 5, 5, 5, 5}},       // seen once at its final value: frame 30
+		{dev(103, 101, "store"), []float32{gone, 1, 2, 1, gone}},          // full-rate rise, then scrapped
+		{dev(104, 101, "store"), []float32{gone, 1, 1.25, 1, 0.5, gone}},  // partial rise, then a fall: frame 30
+		{dev(105, 101, "store"), []float32{gone, gone, 2, 1, 0.5, gone}},  // first seen falling
+		{dev(106, 101, "store"), []float32{gone, gone, gone, gone, 1, 2}}, // last seen rising
+	}
+	var snaps []fwrtest.State
+	for i := range 6 {
+		var devs []fwrtest.Device
+		for _, d := range devices {
+			if i < len(d.progress) && d.progress[i] != gone {
+				d.dev.Progress = d.progress[i]
+				devs = append(devs, d.dev)
+			}
+		}
+		snaps = append(snaps, snap([]int32{101}, devs, nil, nil)) // devices from 100 on are new
+	}
+	data := stateReplay(1383, solo(), snaps)
+	builds := []DeviceEvent{
+		{Frame: 30, Team: 101, Device: 102, TypeID: 3, Name: "store"},
+		{Frame: 30, Team: 101, Device: 104, TypeID: 3, Name: "store"},
+		{Frame: 40, Team: 101, Device: 100, TypeID: 2, Name: "gun", Weapon: true},
+	}
+	for _, c := range []struct {
+		lim    Limits
+		builds []DeviceEvent
+		warn   []string
+	}{
+		{Limits{}, builds, nil},
+		{Limits{MaxStates: -1}, builds, nil},
+		{Limits{MaxBuilds: 2}, builds[:2], []string{"builds cut at 2, 1 more counted only"}},
+		{Limits{MaxBuilds: -1}, nil, nil},
+	} {
+		s := buildOpts(t, data, c.lim)
+		if !reflect.DeepEqual(s.Builds, c.builds) || !slices.Equal(s.Warnings, c.warn) {
+			t.Errorf("%+v: builds %+v, warnings %q", c.lim, s.Builds, s.Warnings)
+		}
+	}
+}
+
+// TestBuildingPruned: a device that vanishes while rising leaves the build
+// tracker.
+func TestBuildingPruned(t *testing.T) {
+	sb := newStateBuilder(1383, nil, Limits{}, func(string, ...any) {})
+	at := func(progress float32) fwrtest.State {
+		d := dev(100, 101, "store")
+		d.Progress = progress
+		return snap([]int32{101}, []fwrtest.Device{d}, nil, nil)
+	}
+	empty := snap([]int32{101}, nil, nil, nil)
+	for i, st := range []fwrtest.State{empty, at(1), at(2), empty} {
+		sb.snapshot(int64(10*(i+1)), st.Payload())
+		if want := []int{0, 1, 1, 0}[i]; len(sb.building) != want {
+			t.Errorf("snapshot %d: %d devices tracked, want %d", i, len(sb.building), want)
+		}
 	}
 }
 
@@ -371,7 +519,7 @@ func TestBuildStateErrors(t *testing.T) {
 		t.Fatalf("state %+v", s.State)
 	}
 	checkLengths(t, s.State)
-	if want := []Loss{{Frame: 50, Team: 101, Device: 2, TypeID: 3, Name: "store"}}; !reflect.DeepEqual(s.Losses, want) {
+	if want := []DeviceEvent{{Frame: 50, Team: 101, Device: 2, TypeID: 3, Name: "store"}}; !reflect.DeepEqual(s.Losses, want) {
 		t.Errorf("losses %+v", s.Losses)
 	}
 	if !reflect.DeepEqual(s.Timelines, ref.Timelines) || len(s.Timelines) != 1 || len(s.Timelines[0].Commands) != 3 {
@@ -392,14 +540,14 @@ func TestStateLimit(t *testing.T) {
 		snaps = append(snaps, snap([]int32{101}, devs, nil, nil))
 	}
 	data := stateReplay(1383, solo(), snaps)
-	lost := []Loss{
+	lost := []DeviceEvent{
 		{Frame: 50, Team: 101, Device: 1, TypeID: 1, Name: "reactor"},
 		{Frame: 50, Team: 101, Device: 2, TypeID: 2, Name: "gun", Weapon: true},
 	}
 	for _, c := range []struct {
 		lim    Limits
 		points int // -1: no state
-		losses []Loss
+		losses []DeviceEvent
 		warn   []string
 	}{
 		{Limits{}, 5, lost, nil},
@@ -544,7 +692,7 @@ func TestStateCorpus(t *testing.T) {
 	})
 	t.Run("losses", func(t *testing.T) {
 		s := buildFile(t, fixtureFile(t, "area-repair-damaged.fwr"))
-		if !slices.Contains(s.Losses, Loss{Frame: 13038, Team: 1, Device: 8, TypeID: 0, Name: "machinegun", Weapon: true}) {
+		if !slices.Contains(s.Losses, DeviceEvent{Frame: 13038, Team: 1, Device: 8, TypeID: 0, Name: "machinegun", Weapon: true}) {
 			t.Errorf("losses %+v", s.Losses)
 		}
 		if i := at(t, s, 13166); team(t, s, 1).ReactorHealth[i] != 80.89825439453125 || team(t, s, 102).ReactorHealth[i] != 100 {
@@ -584,4 +732,34 @@ func TestStateCorpus(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestBuildsCorpus pins team 1's finished devices in the economy and damage
+// probes.
+func TestBuildsCorpus(t *testing.T) {
+	for name, want := range map[string][]DeviceEvent{
+		"damage-weapons.fwr": {
+			{Frame: 510, Team: 1, Device: 11, TypeID: 2, Name: "sniper", Weapon: true},
+			{Frame: 1014, Team: 1, Device: 13, TypeID: 22, Name: "cannon", Weapon: true},
+			{Frame: 1266, Team: 1, Device: 14, TypeID: 4, Name: "mortar", Weapon: true},
+			{Frame: 1644, Team: 1, Device: 15, TypeID: 0, Name: "machinegun", Weapon: true},
+		},
+		"economy-storage.fwr": {
+			{Frame: 2148, Team: 1, Device: 9, TypeID: 3, Name: "sniper2", Weapon: true},
+			{Frame: 2904, Team: 1, Device: 10, TypeID: 37, Name: "battery"},
+			{Frame: 6100, Team: 1, Device: 11, TypeID: 36, Name: "store"},
+			{Frame: 9128, Team: 1, Device: 12, TypeID: 34, Name: "turbine"},
+		},
+	} {
+		s := buildFile(t, fixtureFile(t, name))
+		var got []DeviceEvent
+		for _, b := range s.Builds {
+			if b.Team == 1 {
+				got = append(got, b)
+			}
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: team 1 builds %+v", name, got)
+		}
+	}
 }

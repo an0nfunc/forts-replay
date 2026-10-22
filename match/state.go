@@ -3,6 +3,7 @@
 package match
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"slices"
@@ -59,10 +60,18 @@ type PlayerSeries struct {
 	APM    []float32 `json:"apm"`    // the game's figure at the snapshot
 }
 
-// Loss is a device that vanished between two decoded snapshots without a
-// scrap, upgrade or move naming it. The rule is approximate.
-type Loss struct {
-	Frame  int64  `json:"frame"` // the snapshot it is missing from
+// DeviceEvent is a device lost or finished at a snapshot.
+//
+// A loss is a device that vanished between two decoded snapshots without an
+// upgrade or move naming it in the last two snapshot intervals, and without
+// being scrapped; Frame is the snapshot it is missing from. The rule is
+// approximate.
+//
+// A build is a device finished during the match; Frame is the first
+// snapshot at which its build progress stands at its final value, so it
+// finished in the interval before.
+type DeviceEvent struct {
+	Frame  int64  `json:"frame"`
 	Team   int32  `json:"team"`
 	Device uint32 `json:"device"`
 	TypeID uint16 `json:"type_id"`
@@ -77,6 +86,7 @@ const (
 
 	defaultMaxStates = 8192 // about 11 hours at one snapshot per 5 seconds
 	defaultMaxLosses = 1 << 16
+	defaultMaxBuilds = 1 << 16
 	maxDeviceTypes   = 1024
 	// maxNewIDs bounds the window commands per snapshot interval that name
 	// an object created after the latest decoded snapshot; the others are
@@ -95,14 +105,15 @@ const (
 )
 
 // stateBuilder folds the snapshots and the commands that remove objects
-// into the state series, the losses and the device types. It keeps only
-// aggregates and the latest decoded snapshot's devices and struts, never
-// whole states.
+// into the state series, the losses, the builds and the device types. It
+// keeps only aggregates, the latest decoded snapshot's devices and struts,
+// and the build progress of its unfinished devices, never whole states.
 type stateBuilder struct {
 	decode    bool // the version is stateVersion
 	version   uint32
 	maxStates int
 	maxLosses int
+	maxBuilds int
 	warnf     func(format string, args ...any)
 
 	snapshots int // snapshot records
@@ -122,9 +133,17 @@ type stateBuilder struct {
 	older, recent window     // commands since the decoded snapshot before prev, split at prev
 	newIDs        int        // window commands this interval naming objects created after prev
 	windowCut     int
+	// marks holds, per device of prev or created after it, whether an odd
+	// number of scraps named it: it is being scrapped, however long ago,
+	// since scrapping a large device outlasts the window, and a second
+	// scrap cancels the first. Scraps pass the window's filter and cap.
+	marks map[uint32]bool
 
-	losses   []Loss
+	losses   []DeviceEvent
 	lossCut  int
+	building map[uint32]*building // devices of prev created during the match, not yet finished
+	builds   []DeviceEvent
+	buildCut int
 	types    map[uint16]string
 	typesCut bool
 	renamed  bool
@@ -199,8 +218,8 @@ type strut struct {
 	state uint8
 }
 
-// window holds the IDs, node pairs and nodes that scraps, upgrades, moves
-// and deletes named, and the seats that moves and new placements target.
+// window holds the IDs, node pairs and nodes that upgrades, moves and
+// deletes named, and the seats that moves and new placements target.
 type window struct {
 	devices map[uint32]struct{}
 	pairs   map[[2]uint32]struct{}
@@ -218,15 +237,20 @@ func newWindow() window {
 
 func newStateBuilder(version uint32, h *header.Header, lim Limits, warnf func(format string, args ...any)) *stateBuilder {
 	sb := &stateBuilder{
-		decode: version == stateVersion, version: version, maxStates: lim.MaxStates, maxLosses: lim.MaxLosses, warnf: warnf,
+		decode: version == stateVersion, version: version, warnf: warnf,
+		maxStates: lim.MaxStates, maxLosses: lim.MaxLosses, maxBuilds: lim.MaxBuilds,
 		teams: map[int32]*teamCols{}, sides: [2]SideSeries{{Side: 1}, {Side: 2}},
-		older: newWindow(), recent: newWindow(), types: map[uint16]string{},
+		older: newWindow(), recent: newWindow(), marks: map[uint32]bool{},
+		building: map[uint32]*building{}, types: map[uint16]string{},
 	}
 	if sb.maxStates == 0 {
 		sb.maxStates = defaultMaxStates
 	}
 	if sb.maxLosses == 0 {
 		sb.maxLosses = defaultMaxLosses
+	}
+	if sb.maxBuilds == 0 {
+		sb.maxBuilds = defaultMaxBuilds
 	}
 	if h != nil {
 		for _, p := range h.Players {
@@ -255,7 +279,7 @@ func (sb *stateBuilder) command(m msg.Message) {
 	case *msg.Upgrade:
 		sb.device(c.Device)
 	case *msg.Scrap:
-		sb.device(c.Device)
+		sb.scrap(c.Device)
 	case *msg.DeleteLink:
 		sb.pair(c.NodeA, c.NodeB)
 	case *msg.DeleteNode:
@@ -274,6 +298,18 @@ func (sb *stateBuilder) device(id uint32) bool {
 		return true
 	}
 	return false
+}
+
+// scrap counts a scrap of id in marks.
+func (sb *stateBuilder) scrap(id uint32) {
+	if odd, ok := sb.marks[id]; ok {
+		sb.marks[id] = !odd
+		return
+	}
+	s := sb.prev
+	if s != nil && has(s.deviceIDs, id) || sb.created(s == nil || id >= s.nextDevice) {
+		sb.marks[id] = true
+	}
 }
 
 // place adds a move's device and destination, or a new placement's seat.
@@ -353,7 +389,9 @@ func (sb *stateBuilder) snapshot(frame int64, payload []byte) {
 	var lost map[int32]int
 	if sb.prev != nil {
 		lost = sb.diff(frame, cur)
+		sb.track(frame, cur)
 	}
+	maps.DeleteFunc(sb.marks, func(id uint32, _ bool) bool { return !has(cur.deviceIDs, id) })
 	sb.addTypes(st.Devices)
 	sb.point(frame, st, cur, lost)
 	sb.prev, sb.older, sb.recent, sb.newIDs = cur, sb.recent, newWindow(), 0
@@ -412,17 +450,18 @@ func index(st *state.State, prev *snapIndex) *snapIndex {
 
 // diff finds what vanished between the previous decoded snapshot and cur:
 // it adds the devices lost and returns the struts lost per team. A device
-// or strut that a command in the window names was removed, as was a strut
-// that was being deconstructed. Two more device rules cover what no
-// command names: the placeholder a Phantom move leaves at its destination,
-// and an upgrade the AI makes. A new device of the same name on the pair,
-// or one the team placed there, is a rebuild after a loss.
+// or strut that a command in the window names was removed, as were a
+// device being scrapped and a strut that was being deconstructed. Two more
+// device rules cover what no command names: the placeholder a Phantom move
+// leaves at its destination, and an upgrade the AI makes. A new device of
+// the same name on the pair, or one the team placed there, is a rebuild
+// after a loss.
 func (sb *stateBuilder) diff(frame int64, cur *snapIndex) map[int32]int {
 	for _, d := range sb.prev.devices {
-		if has(cur.deviceIDs, d.ID) || has(sb.older.devices, d.ID) || has(sb.recent.devices, d.ID) || sb.replaced(d, cur) {
+		if has(cur.deviceIDs, d.ID) || has(sb.older.devices, d.ID) || has(sb.recent.devices, d.ID) || sb.marks[d.ID] || sb.replaced(d, cur) {
 			continue
 		}
-		sb.addLoss(Loss{Frame: frame, Team: d.Team, Device: d.ID, TypeID: d.Type, Name: d.Name, Weapon: d.Weapon})
+		sb.addLoss(DeviceEvent{Frame: frame, Team: d.Team, Device: d.ID, TypeID: d.Type, Name: d.Name, Weapon: d.Weapon})
 	}
 	lost := map[int32]int{}
 	for _, s := range sb.prev.struts {
@@ -456,12 +495,73 @@ func (w window) removes(k [2]uint32) bool {
 	return has(w.pairs, k) || has(w.nodes, k[0]) || has(w.nodes, k[1])
 }
 
-func (sb *stateBuilder) addLoss(l Loss) {
+func (sb *stateBuilder) addLoss(l DeviceEvent) {
 	if sb.maxLosses < 0 || len(sb.losses) >= sb.maxLosses {
 		sb.lossCut++
 		return
 	}
 	sb.losses = append(sb.losses, l)
+}
+
+// building is a device created during the match whose build is not
+// confirmed finished: its last two sightings, the earlier one valid once
+// twice is set.
+type building struct {
+	build        DeviceEvent
+	last, before sighting
+	twice        bool
+}
+
+// sighting is a device's build progress at a decoded snapshot.
+type sighting struct {
+	frame    int64
+	progress float32
+}
+
+// track follows the build progress of the devices in cur created after the
+// previous decoded snapshot, adding a build once one is confirmed finished.
+// It forgets devices that are gone, so one destroyed or last seen while
+// still rising gets none, and never tracks a device of the previous
+// snapshot again, so each device gets at most one.
+func (sb *stateBuilder) track(frame int64, cur *snapIndex) {
+	for _, d := range cur.devices {
+		n := sighting{frame, d.Progress}
+		b, ok := sb.building[d.ID]
+		switch {
+		case ok && b.finished(n):
+			sb.addBuild(b.build, b.last.frame)
+			delete(sb.building, d.ID)
+		case ok:
+			b.before, b.last, b.twice = b.last, n, true
+		case d.ID >= sb.prev.nextDevice && !has(sb.prev.deviceIDs, d.ID):
+			sb.building[d.ID] = &building{build: DeviceEvent{Team: d.Team, Device: d.ID, TypeID: d.Type, Name: d.Name, Weapon: d.Weapon}, last: n}
+		}
+	}
+	maps.DeleteFunc(sb.building, func(id uint32, _ *building) bool { return !has(cur.deviceIDs, id) })
+}
+
+// finished reports whether sighting n confirms that the build stopped at
+// the last one: the progress holds, or it falls after a rise smaller than
+// the seconds elapsed. A fall after a full-rate rise, or right after the
+// first sighting, is a build cancelled by scrapping.
+func (b *building) finished(n sighting) bool {
+	l, p := b.last, b.before
+	switch {
+	case n.progress == l.progress:
+		return true
+	case n.progress > l.progress || !b.twice || l.progress <= p.progress:
+		return false
+	}
+	return float64(l.progress)-float64(p.progress) < float64(l.frame-p.frame)/FramesPerSecond
+}
+
+func (sb *stateBuilder) addBuild(b DeviceEvent, frame int64) {
+	if sb.maxBuilds < 0 || len(sb.builds) >= sb.maxBuilds {
+		sb.buildCut++
+		return
+	}
+	b.Frame = frame
+	sb.builds = append(sb.builds, b)
 }
 
 func (sb *stateBuilder) addTypes(devs []state.Device) {
@@ -627,10 +727,17 @@ func (sb *stateBuilder) finish(s *Summary) {
 	if sb.lossCut > 0 && sb.maxLosses > 0 {
 		sb.warnf("losses cut at %d, %d more counted only", sb.maxLosses, sb.lossCut)
 	}
+	if sb.buildCut > 0 && sb.maxBuilds > 0 {
+		sb.warnf("builds cut at %d, %d more counted only", sb.maxBuilds, sb.buildCut)
+	}
 	if len(sb.types) > 0 {
 		s.DeviceTypes = sb.types
 	}
 	s.Losses = sb.losses
+	slices.SortStableFunc(sb.builds, func(a, b DeviceEvent) int {
+		return cmp.Or(cmp.Compare(a.Frame, b.Frame), cmp.Compare(a.Device, b.Device))
+	})
+	s.Builds = sb.builds
 	if len(sb.frames) == 0 {
 		return
 	}

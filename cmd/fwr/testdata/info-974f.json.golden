@@ -581,6 +581,16 @@
       "weapon": true
     }
   ],
+  "builds": [
+    {
+      "frame": 762,
+      "team": 102,
+      "device": 10,
+      "type_id": 36,
+      "name": "store",
+      "weapon": false
+    }
+  ],
   "device_types": {
     "0": "machinegun",
     "30": "reactor",
