@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/an0nfunc/forts-replay/compare/v0.1.0...v0.2.0) (2026-10-22)
+
+
+### Features
+
+* **fwr:** add fwr version and parser_version ([527fb2c](https://github.com/an0nfunc/forts-replay/commit/527fb2ce8f9a43809046db0b91a40242d6dc4742))
+* **fwr:** show match state in info and dump ([235c4f8](https://github.com/an0nfunc/forts-replay/commit/235c4f8669143effe8903099a2bacd7de3fe19da))
+* **match:** add economy, damage, losses and fort state to the summary ([a75ec16](https://github.com/an0nfunc/forts-replay/commit/a75ec167ac376bfb5b3d3c99b457fd06505354ed))
+* **match:** add finished builds and the scrap rule for losses ([712c421](https://github.com/an0nfunc/forts-replay/commit/712c421522c27784794186b9d8ed666a11442afc))
+* **state:** decode the snapshot world state ([4c46f74](https://github.com/an0nfunc/forts-replay/commit/4c46f74e2afb23cedede130bdb887d42044ab664))
+
 ## 0.1.0 (2026-10-22)
 
 
