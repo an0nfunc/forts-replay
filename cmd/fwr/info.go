@@ -30,12 +30,17 @@ func runInfo(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("info", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	asJSON := fs.Bool("json", false, "write the summary as one JSON document (schema/info-v1.json)")
+	maxCommands := fs.Int("max-commands", 1<<16, "keep at most N timeline commands over all players (0 keeps none); counts stay complete")
 	if err := fs.Parse(args); err != nil {
 		return exitUsage
 	}
-	if fs.NArg() != 1 {
-		fmt.Fprintln(stderr, "usage: fwr info [--json] FILE")
+	if fs.NArg() != 1 || *maxCommands < 0 {
+		fmt.Fprintln(stderr, "usage: fwr info [--json] [--max-commands N] FILE")
 		return exitUsage
+	}
+	limits := match.Limits{MaxCommands: *maxCommands}
+	if limits.MaxCommands == 0 {
+		limits.MaxCommands = -1 // 0 in Limits takes the default
 	}
 	f, err := os.Open(fs.Arg(0))
 	if err != nil {
@@ -44,7 +49,7 @@ func runInfo(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 	defer f.Close()
 	var c infoCounts
-	sum, err := match.Build(ctx, f, match.Options{Observe: func(rec stream.Record, _ int64, m msg.Message) {
+	sum, err := match.Build(ctx, f, match.Options{Timeline: limits, Observe: func(rec stream.Record, _ int64, m msg.Message) {
 		c.types[rec.Type]++
 		if s, ok := m.(*msg.Sync); ok {
 			c.syncs++
