@@ -161,7 +161,7 @@ func (*Repair) command()      {}
 type Door struct {
 	Input
 
-	State  uint32 `json:"state"` // candidate: 1 opening, 3 closing
+	State  uint32 `json:"state"` // 1 opening, 3 closing
 	NodeA  uint32 `json:"node_a"`
 	NodeB  uint32 `json:"node_b"`
 	Source uint32 `json:"source"` // 11 from the strut's menu; 1 and 3 to 5 for a weapon; 6 and 8 unknown
@@ -199,7 +199,8 @@ func (*FireBlocked) MsgType() byte { return TypeFireBlocked }
 func (*FireBlocked) command()      {}
 
 // FireStart starts an immediate fire: a double click on a weapon, or the fire
-// key with it selected. A Fire or FireBlocked follows 2 frames later.
+// key with it selected. In single-player games a Fire or FireBlocked follows
+// 2 frames later; for a swarm missile launcher a FireAt follows 40 frames later.
 type FireStart struct {
 	Input
 
@@ -210,7 +211,9 @@ type FireStart struct {
 func (*FireStart) MsgType() byte { return TypeFireStart }
 func (*FireStart) command()      {}
 
-// FireEnd ends an immediate fire, 40 frames after its FireStart.
+// FireEnd ends an immediate fire: 40 frames after its FireStart in
+// single-player games, 38 to 86 in multiplayer ones, 192 for a swarm missile
+// launcher.
 type FireEnd struct {
 	Input
 
