@@ -97,9 +97,9 @@
     },
     "place": {
       "type": "object",
-      "required": ["player", "t", "type_id", "node_a", "node_b", "x", "y", "aim", "moved_device"],
+      "required": ["player", "team", "t", "type_id", "node_a", "node_b", "x", "y", "aim", "moved_device"],
       "properties": {
-        "player": {"$ref": "#/$defs/u32"}, "t": {"type": "number"}, "type_id": {"$ref": "#/$defs/u32"},
+        "player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"}, "t": {"type": "number"}, "type_id": {"$ref": "#/$defs/u32"},
         "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"},
         "x": {"type": "number"}, "y": {"type": "number"}, "aim": {"type": "number"},
         "moved_device": {"$ref": "#/$defs/i32"}
@@ -117,33 +117,37 @@
     },
     "link": {
       "type": "object",
-      "required": ["player", "node_a", "node_b", "material", "first"],
+      "required": ["player", "team", "node_a", "node_b", "material", "first"],
       "properties": {
-        "player": {"$ref": "#/$defs/u32"}, "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"},
+        "player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"}, "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"},
         "material": {"$ref": "#/$defs/u32"}, "first": {"type": "boolean"}
       }
     },
     "two_nodes": {
       "type": "object",
-      "required": ["player", "node_a", "node_b"],
-      "properties": {"player": {"$ref": "#/$defs/u32"}, "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"}}
+      "required": ["player", "team", "node_a", "node_b"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"},
+        "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"}
+      }
     },
     "node": {
       "type": "object",
-      "required": ["player", "node"],
-      "properties": {"player": {"$ref": "#/$defs/u32"}, "node": {"$ref": "#/$defs/u32"}}
+      "required": ["player", "team", "node"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"}, "node": {"$ref": "#/$defs/u32"}}
     },
     "device": {
       "type": "object",
-      "required": ["player", "device"],
-      "properties": {"player": {"$ref": "#/$defs/u32"}, "device": {"$ref": "#/$defs/u32"}}
+      "required": ["player", "team", "device"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"}, "device": {"$ref": "#/$defs/u32"}}
     },
     "door": {
       "type": "object",
-      "required": ["player", "state", "node_a", "node_b"],
+      "required": ["player", "state", "node_a", "node_b", "source", "device"],
       "properties": {
         "player": {"$ref": "#/$defs/u32"}, "state": {"$ref": "#/$defs/u32"},
-        "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"}
+        "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"},
+        "source": {"$ref": "#/$defs/u32"}, "device": {"$ref": "#/$defs/u32"}
       }
     },
     "fire": {
@@ -161,8 +165,8 @@
     },
     "ability": {
       "type": "object",
-      "required": ["player"],
-      "properties": {"player": {"$ref": "#/$defs/u32"}}
+      "required": ["player", "team"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"}}
     },
     "repair_link": {
       "type": "object",

@@ -56,6 +56,7 @@
           "kind": "delete_node",
           "fields": {
             "player": 1,
+            "team": 1,
             "node": 290
           }
         },
@@ -64,6 +65,7 @@
           "kind": "delete_node",
           "fields": {
             "player": 1,
+            "team": 1,
             "node": 295
           }
         },
@@ -72,6 +74,7 @@
           "kind": "delete_node",
           "fields": {
             "player": 1,
+            "team": 1,
             "node": 304
           }
         },
@@ -80,6 +83,7 @@
           "kind": "delete_node",
           "fields": {
             "player": 1,
+            "team": 1,
             "node": 304
           }
         },
@@ -88,6 +92,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 292,
             "node_b": 302
           }
@@ -97,6 +102,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 291,
             "node_b": 292
           }
@@ -106,6 +112,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 287,
             "node_b": 291
           }
@@ -115,6 +122,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 291,
             "node_b": 288
           }
@@ -124,6 +132,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 286,
             "node_b": 291
           }
@@ -133,6 +142,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 286,
             "node_b": 292
           }
@@ -142,6 +152,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 292,
             "node_b": 287
           }
@@ -151,6 +162,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 292,
             "node_b": 298
           }
@@ -160,6 +172,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 302,
             "node_b": 308
           }
@@ -169,6 +182,7 @@
           "kind": "delete_link",
           "fields": {
             "player": 1,
+            "team": 1,
             "node_a": 298,
             "node_b": 302
           }

@@ -42,6 +42,7 @@ type Command interface {
 type Place struct {
 	Input
 
+	Team        int32   `json:"team"`
 	T           float32 `json:"t"`       // position from NodeA to NodeB, 0 to 1; on the ground, the orientation angle
 	TypeID      uint32  `json:"type_id"` // index into the match's weapons-then-devices table
 	NodeA       uint32  `json:"node_a"`  // 0 on the ground
@@ -81,6 +82,7 @@ func (*Strut) command()      {}
 type Link struct {
 	Input
 
+	Team     int32  `json:"team"`
 	NodeA    uint32 `json:"node_a"`
 	NodeB    uint32 `json:"node_b"`
 	Material uint32 `json:"material"`
@@ -95,6 +97,7 @@ func (*Link) command()      {}
 type DeleteLink struct {
 	Input
 
+	Team  int32  `json:"team"`
 	NodeA uint32 `json:"node_a"`
 	NodeB uint32 `json:"node_b"`
 }
@@ -108,6 +111,7 @@ func (*DeleteLink) command()      {}
 type DeleteNode struct {
 	Input
 
+	Team int32  `json:"team"`
 	Node uint32 `json:"node"`
 }
 
@@ -119,6 +123,7 @@ func (*DeleteNode) command()      {}
 type Scrap struct {
 	Input
 
+	Team   int32  `json:"team"`
 	Device uint32 `json:"device"`
 }
 
@@ -131,6 +136,7 @@ func (*Scrap) command()      {}
 type Upgrade struct {
 	Input
 
+	Team   int32  `json:"team"`
 	Device uint32 `json:"device"`
 }
 
@@ -142,6 +148,7 @@ func (*Upgrade) command()      {}
 type Repair struct {
 	Input
 
+	Team int32  `json:"team"`
 	Node uint32 `json:"node"`
 }
 
@@ -149,13 +156,16 @@ type Repair struct {
 func (*Repair) MsgType() byte { return TypeRepair }
 func (*Repair) command()      {}
 
-// Door opens or closes a door strut.
+// Door opens or closes a door or shield strut. The game writes it too,
+// around a weapon's shot or scrap.
 type Door struct {
 	Input
 
-	State uint32 `json:"state"` // candidate: 1 opening, 3 closing
-	NodeA uint32 `json:"node_a"`
-	NodeB uint32 `json:"node_b"`
+	State  uint32 `json:"state"` // candidate: 1 opening, 3 closing
+	NodeA  uint32 `json:"node_a"`
+	NodeB  uint32 `json:"node_b"`
+	Source uint32 `json:"source"` // 11 from the strut's menu; 1 and 3 to 5 for a weapon; 6 and 8 unknown
+	Device uint32 `json:"device"` // the weapon the game moves the door for, 0 for none
 }
 
 // MsgType returns TypeDoor.
@@ -214,6 +224,8 @@ func (*FireEnd) command()      {}
 // Ability activates the commander ability.
 type Ability struct {
 	Input
+
+	Team int32 `json:"team"`
 }
 
 // MsgType returns TypeAbility.
@@ -336,34 +348,34 @@ func registerCommands(r *Registry, v Versions) {
 		}
 	}))
 	r.Register(TypeDeleteNode, v, inputDecoder(33, TypeDeleteNode, func(in Input, b *body) Message {
-		return &DeleteNode{Input: in, Node: b.u32(28)}
+		return &DeleteNode{Input: in, Team: b.i32(24), Node: b.u32(28)}
 	}))
 	r.Register(TypeLink, v, inputDecoder(50, TypeLink, func(in Input, b *body) Message {
-		return &Link{Input: in, NodeA: b.u32(28), NodeB: b.u32(32), Material: b.u32(44), First: b.flag(48)}
+		return &Link{Input: in, Team: b.i32(24), NodeA: b.u32(28), NodeB: b.u32(32), Material: b.u32(44), First: b.flag(48)}
 	}))
 	r.Register(TypeDeleteLink, v, inputDecoder(41, TypeDeleteLink, func(in Input, b *body) Message {
-		return &DeleteLink{Input: in, NodeA: b.u32(28), NodeB: b.u32(32)}
+		return &DeleteLink{Input: in, Team: b.i32(24), NodeA: b.u32(28), NodeB: b.u32(32)}
 	}))
 	r.Register(TypeRepair, v, inputDecoder(32, TypeRepair, func(in Input, b *body) Message {
-		return &Repair{Input: in, Node: b.u32(28)}
+		return &Repair{Input: in, Team: b.i32(24), Node: b.u32(28)}
 	}))
 	r.Register(TypeDoor, v, inputDecoder(44, TypeDoor, func(in Input, b *body) Message {
-		return &Door{Input: in, State: b.u32(24), NodeA: b.u32(28), NodeB: b.u32(32)}
+		return &Door{Input: in, State: b.u32(24), NodeA: b.u32(28), NodeB: b.u32(32), Source: b.u32(36), Device: b.u32(40)}
 	}))
 	r.Register(TypePlace, v, inputDecoder(67, TypePlace, func(in Input, b *body) Message {
 		return &Place{
-			Input: in, T: b.f32(28), TypeID: b.u32(32), NodeA: b.u32(36), NodeB: b.u32(40),
+			Input: in, Team: b.i32(24), T: b.f32(28), TypeID: b.u32(32), NodeA: b.u32(36), NodeB: b.u32(40),
 			X: b.f32(44), Y: b.f32(48), Aim: b.f32(53), MovedDevice: b.i32(59),
 		}
 	}))
 	r.Register(TypeUpgrade, v, inputDecoder(36, TypeUpgrade, func(in Input, b *body) Message {
-		return &Upgrade{Input: in, Device: b.u32(28)}
+		return &Upgrade{Input: in, Team: b.i32(24), Device: b.u32(28)}
 	}))
 	r.Register(TypeScrap, v, inputDecoder(34, TypeScrap, func(in Input, b *body) Message {
-		return &Scrap{Input: in, Device: b.u32(28)}
+		return &Scrap{Input: in, Team: b.i32(24), Device: b.u32(28)}
 	}))
-	r.Register(TypeAbility, v, inputDecoder(29, TypeAbility, func(in Input, _ *body) Message {
-		return &Ability{Input: in}
+	r.Register(TypeAbility, v, inputDecoder(29, TypeAbility, func(in Input, b *body) Message {
+		return &Ability{Input: in, Team: b.i32(24)}
 	}))
 	r.Register(TypeRepairLink, v, inputDecoder(36, TypeRepairLink, func(in Input, b *body) Message {
 		return &RepairLink{Input: in, Team: b.i32(24), NodeA: b.u32(28), NodeB: b.u32(32)}
