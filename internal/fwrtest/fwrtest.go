@@ -328,7 +328,7 @@ func DeleteLink(player uint32, team int32, a, b uint32) []byte {
 	le := binary.LittleEndian
 	le.PutUint32(p[28:], a)
 	le.PutUint32(p[32:], b)
-	le.PutUint32(p[37:], math.Float32bits(-1))
+	putF32(p, 37, -1)
 	return p
 }
 
@@ -347,6 +347,10 @@ func command(t byte, n int, player uint32, team int32) []byte {
 	binary.LittleEndian.PutUint32(p[20:], player)
 	binary.LittleEndian.PutUint32(p[24:], uint32(team))
 	return p
+}
+
+func putF32(b []byte, off int, v float32) {
+	binary.LittleEndian.PutUint32(b[off:], math.Float32bits(v))
 }
 
 // State is the content of a snapshot payload with its binary state, as
@@ -436,7 +440,6 @@ const (
 // table and a minimal tail after the links.
 func (s State) Payload() []byte {
 	le := binary.LittleEndian
-	f32 := func(b []byte, off int, v float32) { le.PutUint32(b[off:], math.Float32bits(v)) }
 	p := make([]byte, stHeaderEnd)
 	p[0] = 0xe1
 	le.PutUint32(p[stNextNode:], s.NextNode)
@@ -446,22 +449,22 @@ func (s State) Payload() []byte {
 	}
 	for i, t := range s.Teams {
 		le.PutUint32(p[stTeams+4*i:], uint32(t.ID))
-		f32(p, stCurrent+12*i+4, t.Metal)
-		f32(p, stCurrent+12*i+8, t.Energy)
-		f32(p, stMaximum+12*i+4, t.MaxMetal)
-		f32(p, stMaximum+12*i+8, t.MaxEnergy)
-		f32(p, stFloated+12*i+4, t.FloatedMetal)
-		f32(p, stFloated+12*i+8, t.FloatedEnergy)
-		f32(p, stDealt+4*i, t.DamageDealt)
+		putF32(p, stCurrent+12*i+4, t.Metal)
+		putF32(p, stCurrent+12*i+8, t.Energy)
+		putF32(p, stMaximum+12*i+4, t.MaxMetal)
+		putF32(p, stMaximum+12*i+8, t.MaxEnergy)
+		putF32(p, stFloated+12*i+4, t.FloatedMetal)
+		putF32(p, stFloated+12*i+8, t.FloatedEnergy)
+		putF32(p, stDealt+4*i, t.DamageDealt)
 	}
-	f32(p, stTaken, s.DamageTaken[0])
-	f32(p, stTaken+4, s.DamageTaken[1])
+	putF32(p, stTaken, s.DamageTaken[0])
+	putF32(p, stTaken+4, s.DamageTaken[1])
 	for k, sl := range s.Slots {
 		blk := stSlotBlock + 148*k
 		le.PutUint32(p[stSlotTeams+4*k:], uint32(sl.Team))
-		f32(p, blk+132, sl.APM)
+		putF32(p, blk+132, sl.APM)
 		le.PutUint32(p[blk+140:], uint32(sl.Team))
-		f32(p, blk+144, sl.Damage)
+		putF32(p, blk+144, sl.Damage)
 	}
 	return s.rest(p)
 }
@@ -470,7 +473,6 @@ func (s State) Payload() []byte {
 // p.
 func (s State) rest(p []byte) []byte {
 	le := binary.LittleEndian
-	f32 := func(v float32) { p = le.AppendUint32(p, math.Float32bits(v)) }
 	for _, text := range s.Lua {
 		p = le.AppendUint32(p, uint32(len(text)))
 		p = append(p, text...)
@@ -493,8 +495,8 @@ func (s State) rest(p []byte) []byte {
 		rec := make([]byte, size)
 		le.PutUint32(rec, n.ID)
 		le.PutUint32(rec[4:], uint32(n.Team))
-		le.PutUint32(rec[20:], math.Float32bits(n.X))
-		le.PutUint32(rec[24:], math.Float32bits(n.Y))
+		putF32(rec, 20, n.X)
+		putF32(rec, 24, n.Y)
 		rec[156] = n.Kind
 		if size > 157 {
 			copy(rec[162:], "0000")
@@ -508,17 +510,17 @@ func (s State) rest(p []byte) []byte {
 		p = append(p, d.Name...)
 		p = le.AppendUint32(p, uint32(d.Team))
 		p = le.AppendUint32(p, 0)
-		f32(d.Progress)
+		p = le.AppendUint32(p, math.Float32bits(d.Progress))
 		p = le.AppendUint32(p, 0xdededede)
 		body := make([]byte, 168)
 		le.PutUint32(body, d.ID)
 		le.PutUint32(body[4:], uint32(d.Team))
 		le.PutUint16(body[16:], d.Type)
-		le.PutUint32(body[20:], math.Float32bits(d.X))
-		le.PutUint32(body[24:], math.Float32bits(d.Y))
+		putF32(body, 20, d.X)
+		putF32(body, 24, d.Y)
 		le.PutUint32(body[32:], d.NodeA)
 		le.PutUint32(body[36:], d.NodeB)
-		le.PutUint32(body[44:], math.Float32bits(d.Health))
+		putF32(body, 44, d.Health)
 		p = append(p, body...)
 		if d.Weapon {
 			w := make([]byte, 376-168)
@@ -555,14 +557,14 @@ func (s State) rest(p []byte) []byte {
 			p = le.AppendUint32(p, uint32(l.Device))
 			if l.Device >= 0 {
 				p = append(p, 0)
-				f32(0.5)
+				p = le.AppendUint32(p, math.Float32bits(0.5))
 			}
 			p = le.AppendUint32(p, uint32(l.Segments))
 			p = append(p, make([]byte, 9*max(l.Segments, 0))...)
 			body := make([]byte, 85)
 			le.PutUint32(body, 0x01010101)
 			le.PutUint32(body[4:], l.Material)
-			le.PutUint32(body[8:], math.Float32bits(l.HP))
+			putF32(body, 8, l.HP)
 			body[41] = l.State
 			p = append(p, body...)
 		}

@@ -138,6 +138,10 @@ func runDump(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	w := bufio.NewWriter(stdout)
 	enc := json.NewEncoder(w)
 	var version uint32
+	setVersion := func(h container.Header) error {
+		version = h.Version
+		return nil
+	}
 	show := func(it item) error {
 		if *block >= 0 && it.Block != *block || want != nil && !want[it.Record.Type] {
 			return nil
@@ -147,7 +151,7 @@ func runDump(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		}
 		return writeText(w, it, version, *withLua)
 	}
-	res, err := walk(ctx, fs.Arg(0), handlers{header: func(h container.Header) error { version = h.Version; return nil }, msg: show})
+	res, err := walk(ctx, fs.Arg(0), handlers{header: setVersion, msg: show})
 	if err != nil {
 		w.Flush()
 		fmt.Fprintf(stderr, "fwr dump: %v\n", err)

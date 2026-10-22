@@ -238,19 +238,12 @@ func newWindow() window {
 func newStateBuilder(version uint32, h *header.Header, lim Limits, warnf func(format string, args ...any)) *stateBuilder {
 	sb := &stateBuilder{
 		decode: version == stateVersion, version: version, warnf: warnf,
-		maxStates: lim.MaxStates, maxLosses: lim.MaxLosses, maxBuilds: lim.MaxBuilds,
 		teams: map[int32]*teamCols{}, sides: [2]SideSeries{{Side: 1}, {Side: 2}},
 		older: newWindow(), recent: newWindow(), marks: map[uint32]bool{},
 		building: map[uint32]*building{}, types: map[uint16]string{},
-	}
-	if sb.maxStates == 0 {
-		sb.maxStates = defaultMaxStates
-	}
-	if sb.maxLosses == 0 {
-		sb.maxLosses = defaultMaxLosses
-	}
-	if sb.maxBuilds == 0 {
-		sb.maxBuilds = defaultMaxBuilds
+		maxStates: cmp.Or(lim.MaxStates, defaultMaxStates),
+		maxLosses: cmp.Or(lim.MaxLosses, defaultMaxLosses),
+		maxBuilds: cmp.Or(lim.MaxBuilds, defaultMaxBuilds),
 	}
 	if h != nil {
 		for _, p := range h.Players {
@@ -289,15 +282,14 @@ func (sb *stateBuilder) command(m msg.Message) {
 
 // device adds id to the window and reports whether it is there.
 func (sb *stateBuilder) device(id uint32) bool {
-	if _, ok := sb.recent.devices[id]; ok {
+	if has(sb.recent.devices, id) {
 		return true
 	}
-	s := sb.prev
-	if s != nil && has(s.deviceIDs, id) || sb.created(s == nil || id >= s.nextDevice) {
-		sb.recent.devices[id] = struct{}{}
-		return true
+	if !sb.admitsDevice(id) {
+		return false
 	}
-	return false
+	sb.recent.devices[id] = struct{}{}
+	return true
 }
 
 // scrap counts a scrap of id in marks.
@@ -306,10 +298,17 @@ func (sb *stateBuilder) scrap(id uint32) {
 		sb.marks[id] = !odd
 		return
 	}
-	s := sb.prev
-	if s != nil && has(s.deviceIDs, id) || sb.created(s == nil || id >= s.nextDevice) {
+	if sb.admitsDevice(id) {
 		sb.marks[id] = true
 	}
+}
+
+// admitsDevice reports whether a command naming device id, a scrap
+// included, passes the window's filter: id is a device of the latest
+// decoded snapshot, or one created after it that fits under maxNewIDs.
+func (sb *stateBuilder) admitsDevice(id uint32) bool {
+	s := sb.prev
+	return s != nil && has(s.deviceIDs, id) || sb.created(s == nil || id >= s.nextDevice)
 }
 
 // place adds a move's device and destination, or a new placement's seat.
@@ -335,7 +334,7 @@ func (sb *stateBuilder) place(c *msg.Place) {
 
 func (sb *stateBuilder) pair(a, b uint32) {
 	k := pairKey(a, b)
-	if _, ok := sb.recent.pairs[k]; ok {
+	if has(sb.recent.pairs, k) {
 		return
 	}
 	s := sb.prev
@@ -345,7 +344,7 @@ func (sb *stateBuilder) pair(a, b uint32) {
 }
 
 func (sb *stateBuilder) node(n uint32) {
-	if _, ok := sb.recent.nodes[n]; ok {
+	if has(sb.recent.nodes, n) {
 		return
 	}
 	s := sb.prev
