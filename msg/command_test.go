@@ -41,6 +41,16 @@ func TestCommandFixtures(t *testing.T) {
 		{"probe-dblclick.fwr", 1350, &Fire{Input: p1, Device: 11, Angle: 0.0025518368929624557, Power: 0.5, Immediate: true}},
 		{"probe-downgrade-overdrive.fwr", 716, &Upgrade{Input: p1, Device: 10}},
 		{"probe-move-phantom.fwr", 718, &Place{Input: p1, T: 0.4678429663181305, TypeID: 38, NodeA: 287, NodeB: 291, X: -1951.2061767578125, Y: 207.62594604492188, MovedDevice: 10}},
+		{"portal-link.fwr", 636, &PortalLink{Input: p1, NodeA: 303, NodeB: 317, OtherA: 304, OtherB: 318}},
+		{"portal-link.fwr", 800, &PortalLink{Input: p1, NodeA: 303, NodeB: 317}},
+		{"portal-link.fwr", 1148, &PortalReverse{Input: p1, NodeA: 303, NodeB: 317}},
+		{"ammo-select.fwr", 888, &Ammo{Input: p1, Device: 9}},
+		{"ammo-select.fwr", 1238, &Ammo{Input: p1, Ammo: 1, Device: 9}},
+		{"swarm-missiles.fwr", 1450, &FireAt{Input: p1, X: 1903.1417236328125, Y: -147.45150756835938, Angle: -1.5707963705062866, Device: 1394, Spotter: 1396}},
+		{"area-repair-damaged.fwr", 13368, &RepairArea{Input: p1, Team: 1, X: -1835.512451171875, Y: 39.999420166015625, Radius: 200}},
+		{"device-repair.fwr", 14660, &RepairDevice{Input: p1, Team: 1, Device: 7}},
+		{"strut-repair.fwr", 14020, &RepairLink{Input: p1, Team: 1, NodeA: 298, NodeB: 302}},
+		{"swarm-immediate-fire.fwr", 2856, &FireAt{Input: p1, X: 1903.1943359375, Y: -147.40890502929688, Angle: -1.5707963705062866, Device: 1394, Spotter: 1395}},
 	}
 	msgs := map[string][]framed{}
 	for _, c := range cases {
@@ -86,6 +96,8 @@ func TestCommandFlags(t *testing.T) {
 		"strut dx":           setF(inputRec(TypeStrut, 74, TypeStrut), 40),
 		"fire angle":         setF(inputRec(TypeFire, 51, TypeFire), 33),
 		"fire blocked angle": setF(inputRec(TypeFireBlocked, 33, TypeFireBlocked), 29),
+		"repair area x":      setF(inputRec(TypeRepairArea, 44, TypeRepairArea), 28),
+		"fire at angle":      setF(inputRec(TypeFireAt, 52, TypeFireAt), 32),
 	}
 	r := DefaultRegistry()
 	for name, p := range cases {
@@ -96,7 +108,7 @@ func TestCommandFlags(t *testing.T) {
 }
 
 // TestFixturesTyped decodes every sample replay: no record is Invalid, and
-// only 0x93 and script calls stay Raw.
+// only 0x93 stays Raw.
 func TestFixturesTyped(t *testing.T) {
 	for _, name := range slices.Concat(fixture.Names, fixture.Probes) {
 		for _, f := range fixtureMessages(t, name) {
@@ -104,7 +116,7 @@ func TestFixturesTyped(t *testing.T) {
 			case *Invalid:
 				t.Errorf("%s frame %d: %v", name, f.frame, m.Err)
 			case *Raw:
-				if m.Type != 0x93 && m.Type != 0xe6 {
+				if m.Type != 0x93 {
 					t.Errorf("%s frame %d: raw %#02x", name, f.frame, m.Type)
 				}
 			}

@@ -114,7 +114,7 @@ blk=0 off=0x11816 frame=78 type=0xc0 len=164 sync
 blk=0 off=0x118c2 frame=78 type=0x95 len=37 pointer {"player":1,"x":-1369.3353,"y":350.1057}
 blk=0 off=0x118ef frame=78 type=0xbe len=28 tick target=82
 blk=0 off=0x11913 frame=80 type=0xc0 len=164 sync
-blk=0 off=0x119bf frame=80 type=0xe6 len=344 raw e600000000000000000000000000000000e60000000000004f6e53747265616d...
+blk=0 off=0x119bf frame=80 type=0xe6 len=344 script {"player":0,"name":"OnStreamComplete","args":"1, true"}
 blk=0 off=0x11b1f frame=80 type=0x95 len=37 pointer {"player":1,"x":-1411.2559,"y":345.07324}
 blk=0 off=0x11b4c frame=80 type=0xbe len=28 tick target=84
 blk=0 off=0x11b70 frame=82 type=0xc0 len=164 sync

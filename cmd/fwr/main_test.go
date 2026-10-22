@@ -160,7 +160,7 @@ func TestDumpJSON(t *testing.T) {
 	if x, _ := f["x"].(float64); f["player"] != 1.0 || math.Abs(x-45.7817) > 1e-3 || pointer["payload"] == "" {
 		t.Errorf("first pointer %v", pointer)
 	}
-	if kinds["tick"] != 139 || kinds["sync"] != 139 || kinds["raw"] != 3 || kinds["pointer"] != 94 || kinds["hover"] != 10 || kinds["apm"] != 4 || kinds["snapshot"] != 3 || lastSync != 278.0 {
+	if kinds["tick"] != 139 || kinds["sync"] != 139 || kinds["raw"] != 2 || kinds["script"] != 1 || kinds["pointer"] != 94 || kinds["hover"] != 10 || kinds["apm"] != 4 || kinds["snapshot"] != 3 || lastSync != 278.0 {
 		t.Errorf("kinds %v, last sync frame %v", kinds, lastSync)
 	}
 }

@@ -70,6 +70,7 @@ func DefaultRegistry() *Registry {
 	r.Register(TypeSync, v1383, decodeSync)
 	registerInputs(r, v1383)
 	registerCommands(r, v1383)
+	registerScripts(r, v1383)
 	registerGame(r, v1383)
 	return r
 }

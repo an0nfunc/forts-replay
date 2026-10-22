@@ -87,6 +87,15 @@ func TestLayouts(t *testing.T) {
 		{TypeScrap, 34, TypeScrap, TypeScrap},
 		{TypeAbility, 29, TypeAbility, TypeAbility},
 		{TypeResult, 85, TypeResult, TypeResult},
+		{TypeRepairLink, 36, TypeRepairLink, TypeRepairLink},
+		{TypeRepairDevice, 32, TypeRepairDevice, TypeRepairDevice},
+		{TypeRepairArea, 44, TypeRepairArea, TypeRepairArea},
+		{TypePortalLink, 40, TypePortalLink, TypePortalLink},
+		{TypePortalReverse, 32, TypePortalReverse, TypePortalReverse},
+		{TypeFireAt, 52, TypeFireAt, TypeFireAt},
+		{TypeAmmo, 32, TypeAmmo, TypeAmmo},
+		{TypeAim, 37, TypeAim, TypeAim},
+		{TypeScriptCall, 344, TypeScriptCall, TypeScriptCall},
 	}
 	r := DefaultRegistry()
 	for _, l := range layouts {
@@ -159,6 +168,17 @@ func TestInputFixtures(t *testing.T) {
 	}
 }
 
+// TestAimFixture: the swarm launcher's aim point while it is selected.
+func TestAimFixture(t *testing.T) {
+	got := firstAt(fixtureMessages(t, "swarm-missiles.fwr"), 728, TypeAim)
+	if want := (&Aim{Player: 1, X: -2279.37109375, Y: -1234.748046875}); !reflect.DeepEqual(got, want) {
+		t.Errorf("%#v, want %#v", got, want)
+	}
+	if _, ok := got.(Command); ok {
+		t.Error("Aim is a Command")
+	}
+}
+
 func TestInputInvalid(t *testing.T) {
 	setF := func(p []byte, off int, v float64) []byte {
 		binary.LittleEndian.PutUint32(p[off:], math.Float32bits(float32(v)))
@@ -168,6 +188,7 @@ func TestInputInvalid(t *testing.T) {
 		"NaN x":      setF(inputRec(TypePointer, 37, TypePointer-1), 28, math.NaN()),
 		"infinite y": setF(inputRec(TypePointer, 37, TypePointer-1), 32, math.Inf(1)),
 		"NaN rate":   setF(inputRec(TypeAPM, 36, TypeAPM), 28, math.NaN()),
+		"NaN aim x":  setF(inputRec(TypeAim, 37, TypeAim), 28, math.NaN()),
 	}
 	for name, p := range cases {
 		data := bytes.Join([][]byte{fwrtest.Record(fixed(TypeSync, 164, 4), false), fwrtest.Record(p, false)}, nil)
