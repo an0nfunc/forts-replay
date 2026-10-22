@@ -373,7 +373,11 @@ func TestInfoSchema(t *testing.T) {
 		write(t, dir, "cut.fwr", cut[:len(cut)*6/10]),
 		write(t, dir, "v7.fwr", fwrtest.File(fwrtest.Header{Version: 7, Frames: 4}, fwrtest.Record([]byte{0xbe}, true))),
 	}
-	for _, name := range slices.Concat(fixture.Names, fixture.Probes) {
+	corpusFiles := []string{
+		"portal-link.fwr", "ammo-select.fwr", "swarm-missiles.fwr", "toggles.fwr",
+		"area-repair-damaged.fwr", "device-repair.fwr", "strut-repair.fwr", "swarm-immediate-fire.fwr",
+	}
+	for _, name := range slices.Concat(fixture.Names, fixture.Probes, corpusFiles) {
 		files = append(files, fixturePath(t, name))
 	}
 	validate := func(sch *jsonschema.Schema, doc string) error {
@@ -412,6 +416,39 @@ func TestInfoSchema(t *testing.T) {
 	if validate(strict, added) == nil {
 		t.Error("added field: valid against the closed copy")
 	}
+	teleport := edited(func(d map[string]any) { cmd0(d)["kind"], cmd0(d)["fields"] = "teleport", map[string]any{"to": 1} })
+	if err := validate(open, teleport); err != nil {
+		t.Errorf("added kind: %v", err)
+	}
+	if validate(strict, teleport) == nil {
+		t.Error("added kind: valid against the closed copy")
+	}
+	// Each pair differs in one property of a complete entry.
+	for name, c := range map[string]struct {
+		kind            string
+		complete, wrong map[string]any
+	}{
+		"door without source": {
+			"door",
+			map[string]any{"player": 1, "state": 1, "node_a": 2, "node_b": 3, "source": 3, "device": 4},
+			map[string]any{"player": 1, "state": 1, "node_a": 2, "node_b": 3, "device": 4},
+		},
+		"repair_area with a string radius": {
+			"repair_area",
+			map[string]any{"player": 1, "team": 1, "x": 1.5, "y": 2.5, "radius": 200},
+			map[string]any{"player": 1, "team": 1, "x": 1.5, "y": 2.5, "radius": "200"},
+		},
+	} {
+		with := func(fields map[string]any) string {
+			return edited(func(d map[string]any) { cmd0(d)["kind"], cmd0(d)["fields"] = c.kind, fields })
+		}
+		if err := validate(strict, with(c.complete)); err != nil {
+			t.Errorf("%s, complete: %v", name, err)
+		}
+		if validate(open, with(c.wrong)) == nil {
+			t.Errorf("%s: valid", name)
+		}
+	}
 	// The published schema rejects what v1 defines differently.
 	for name, edit := range map[string]func(d map[string]any){
 		"numeric steam_id": func(d map[string]any) { d["players"].([]any)[0].(map[string]any)["steam_id"] = 1 },
@@ -421,7 +458,6 @@ func TestInfoSchema(t *testing.T) {
 			cmd0(d)["kind"] = "upgrade"
 			cmd0(d)["fields"].(map[string]any)["device"] = "1"
 		},
-		"unknown kind": func(d map[string]any) { cmd0(d)["kind"] = "teleport" },
 		"17 players": func(d map[string]any) {
 			ps := d["players"].([]any)
 			for len(ps) < 17 {
@@ -448,7 +484,7 @@ func TestInfoSchema(t *testing.T) {
 // compileSchema compiles schema/info-v1.json. With strict, every object
 // that lists its properties is closed, except the if and then subschemas
 // of the entry definition: they list only kind or fields, so closing them
-// would reject every entry.
+// would reject every entry. The kind list is closed to the known kinds too.
 func compileSchema(t *testing.T, strict bool) *jsonschema.Schema {
 	t.Helper()
 	f, err := os.Open("../../schema/info-v1.json")
@@ -462,6 +498,11 @@ func compileSchema(t *testing.T, strict bool) *jsonschema.Schema {
 	}
 	if strict {
 		closeObjects(doc)
+		kinds := []any{
+			"place", "strut", "link", "delete_link", "delete_node", "scrap", "upgrade", "repair", "door", "fire", "fire_blocked", "ability",
+			"repair_link", "repair_device", "repair_area", "portal_link", "portal_reverse", "fire_at", "ammo",
+		}
+		doc.(map[string]any)["$defs"].(map[string]any)["kind"] = map[string]any{"enum": kinds}
 	}
 	c := jsonschema.NewCompiler()
 	if err = c.AddResource("info-v1.json", doc); err != nil {
