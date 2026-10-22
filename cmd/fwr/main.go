@@ -40,6 +40,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runHex(ctx, args[1:], stdout, stderr)
 	case "extract":
 		return runExtract(ctx, args[1:], stdout, stderr)
+	case "version":
+		return runVersion(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		usage(stdout)
 		return exitOK
@@ -58,5 +60,6 @@ commands:
   dump      list every message (--json, --type, --block, --lua)
   hex       align the payloads of one message type (--type, --max-bytes)
   extract   write the header and decompressed blocks to a directory (-o)
+  version   print the parser version
 `)
 }

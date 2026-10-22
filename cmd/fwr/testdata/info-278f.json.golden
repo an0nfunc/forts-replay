@@ -242,5 +242,6 @@
   "blocks": 3,
   "records": 392,
   "truncated": false,
-  "warnings": []
+  "warnings": [],
+  "parser_version": "(version)"
 }

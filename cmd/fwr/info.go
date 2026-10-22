@@ -74,7 +74,11 @@ func runInfo(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if *asJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
-		err = enc.Encode(sum)
+		err = enc.Encode(struct {
+			*match.Summary
+
+			ParserVersion string `json:"parser_version"`
+		}{sum, parserVersion()})
 	} else {
 		writeSummary(w, sum, &c)
 	}
