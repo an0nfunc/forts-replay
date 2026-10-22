@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package snapshot reads the Lua sections of a state snapshot (message
-// 0xe1). The binary world state around them is kept raw.
+// 0xe1). Package state decodes the binary data around them.
 package snapshot
 
 import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"iter"
 
 	"github.com/an0nfunc/forts-replay/lua"
 )
 
 // Every section the game writes starts with this text and is preceded by
-// its u32 length. The binary data between sections is not decoded yet, so
-// sections are found by this signature.
+// its u32 length. Sections are found by this signature, without reading
+// the binary data between them.
 const signature = "data = "
 
 const maxNameLen = 255
@@ -46,17 +47,7 @@ func Parse(payload []byte, lim lua.Limits) *Snapshot {
 	lim = lim.WithDefaults()
 	budget := lim.MaxSize
 	s := &Snapshot{Payload: payload}
-	for i := 0; i < len(payload); {
-		j := bytes.Index(payload[i:], []byte(signature))
-		if j < 0 {
-			break
-		}
-		p := i + j
-		n, ok := textLen(payload, p)
-		if !ok {
-			i = p + 1
-			continue
-		}
+	for p, n := range sections(payload) {
 		sec := Section{Offset: p, Name: nameBefore(payload, p), Text: payload[p : p+n : p+n]}
 		switch {
 		case len(s.Sections) == maxSections:
@@ -70,9 +61,44 @@ func Parse(payload []byte, lim lua.Limits) *Snapshot {
 			sec.Table, sec.Err = lua.Parse(sec.Text, lim)
 		}
 		s.Sections = append(s.Sections, sec)
-		i = p + n
 	}
 	return s
+}
+
+// End returns the end of the last Lua section, where the binary world
+// state starts, without parsing any Lua. It reports false when the payload
+// has no section.
+func End(payload []byte) (int, bool) {
+	end, ok := 0, false
+	for p, n := range sections(payload) {
+		end, ok = p+n, true
+	}
+	return end, ok
+}
+
+// sections yields the offset and length of each section's text, at most
+// maxSections+1 of them.
+func sections(payload []byte) iter.Seq2[int, int] {
+	return func(yield func(int, int) bool) {
+		found := 0
+		for i := 0; i < len(payload); {
+			j := bytes.Index(payload[i:], []byte(signature))
+			if j < 0 {
+				return
+			}
+			p := i + j
+			n, ok := textLen(payload, p)
+			if !ok {
+				i = p + 1
+				continue
+			}
+			if !yield(p, n) || found == maxSections {
+				return
+			}
+			found++
+			i = p + n
+		}
+	}
 }
 
 func textLen(b []byte, p int) (int, bool) {

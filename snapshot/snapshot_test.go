@@ -7,8 +7,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/an0nfunc/forts-replay/internal/corpus"
 	"github.com/an0nfunc/forts-replay/internal/fixture"
 	"github.com/an0nfunc/forts-replay/lua"
 	"github.com/an0nfunc/forts-replay/stream"
@@ -118,8 +120,47 @@ func TestFixtures(t *testing.T) {
 }
 
 func TestSectionCap(t *testing.T) {
-	secs := Parse(bytes.Repeat(section("", "data = "), 100000), lua.Limits{}).Sections
+	payload := bytes.Repeat(section("", "data = "), 100000)
+	secs := Parse(payload, lua.Limits{}).Sections
 	if len(secs) != maxSections+1 || !errors.Is(secs[maxSections].Err, lua.ErrLimit) {
 		t.Fatalf("%d sections, last err %v", len(secs), secs[len(secs)-1].Err)
+	}
+	if end, _ := End(payload); end != secs[maxSections].Offset+len(secs[maxSections].Text) {
+		t.Errorf("End %d after %d sections", end, len(secs))
+	}
+}
+
+// TestEnd checks End against Parse on every v1.38.2 corpus snapshot.
+func TestEnd(t *testing.T) {
+	corpus.Require(t, "..")
+	n := 0
+	err := corpus.Walk("..", func(_, rel string) error {
+		name, ok := strings.CutPrefix(rel, "v1.38.2/")
+		if !ok {
+			return nil
+		}
+		for i, p := range snapshotsIn(fixture.Blocks(t, "..", name)) {
+			secs := Parse(p, lua.Limits{}).Sections
+			if len(secs) == 0 {
+				t.Fatalf("%s snapshot %d: no section", rel, i)
+			}
+			last := secs[len(secs)-1]
+			if end, ok := End(p); !ok || end != last.Offset+len(last.Text) {
+				t.Errorf("%s snapshot %d: End %d, %v; last section ends at %d", rel, i, end, ok, last.Offset+len(last.Text))
+			}
+			n++
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n == 0 {
+		t.Fatal("no snapshots")
+	}
+	for _, p := range [][]byte{nil, {0xe1, 1, 2, 3}, []byte("\x00\x01\x00\x00data = ")} {
+		if end, ok := End(p); ok {
+			t.Errorf("%q: End %d", p, end)
+		}
 	}
 }

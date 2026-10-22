@@ -56,6 +56,7 @@ linters:
             - "**/stream/*.go"
             - "**/lua/*.go"
             - "**/header/*.go"
+            - "**/state/*.go"
             - "!$test"
           deny:
             - pkg: github.com/an0nfunc/forts-replay

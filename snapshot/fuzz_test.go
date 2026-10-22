@@ -24,5 +24,8 @@ func FuzzParse(f *testing.F) {
 			}
 			end = sec.Offset + len(sec.Text)
 		}
+		if e, ok := End(payload); ok != (len(s.Sections) > 0) || e != end {
+			t.Fatalf("End %d, %v; sections end at %d", e, ok, end)
+		}
 	})
 }
