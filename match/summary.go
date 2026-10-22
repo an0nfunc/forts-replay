@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package match builds the summary of a replay: header fields, players,
-// the result, and per-player command timelines with action counts and
-// build orders. Commands are what players asked for; the game may have
-// refused some.
+// the result, per-player command timelines with action counts and build
+// orders, and the economy, damage and fort state the snapshots record.
+// Commands are what players asked for; the game may have refused some.
 package match
 
 import (
@@ -57,6 +57,9 @@ type Summary struct {
 	Commanders    []Commander       `json:"commanders,omitempty"` // the sides with a commander
 	Result        *Result           `json:"result,omitempty"`
 	Timelines     []*PlayerTimeline `json:"timelines,omitempty"` // by player ID
+	State         *StateSeries      `json:"state,omitempty"`     // header version 1383 only
+	Losses        []Loss            `json:"losses,omitempty"`
+	DeviceTypes   map[uint16]string `json:"device_types,omitempty"` // type ID to save-name, from the snapshots
 	Blocks        int               `json:"blocks"`
 	Records       int               `json:"records"`
 	Truncated     bool              `json:"truncated"` // decoding stopped early; the rest is what decoded before
@@ -183,6 +186,7 @@ type builder struct {
 	hdr     *header.Header // nil unless every header field decoded
 	hasSync bool           // the version has a sync decoder
 	tl      *Timeline
+	st      *stateBuilder
 
 	syncs    int
 	lastSync uint32
@@ -217,6 +221,7 @@ func newBuilder(hdr container.Header, reg *msg.Registry, opts Options) *builder 
 	default:
 		b.hdr = h
 	}
+	b.st = newStateBuilder(hdr.Version, b.hdr, opts.Timeline, b.warnf)
 	if h != nil {
 		b.sum.Ranked, b.sum.Map, b.sum.Options = h.Ranked, h.Map, h.Options
 		if h.Commanders == nil {
@@ -249,7 +254,10 @@ func (b *builder) add(rec stream.Record, frame int64, m msg.Message) {
 		case !b.differs && *m != *b.ranked:
 			b.differs, b.differsAt = true, frame
 		}
+	case *msg.Place, *msg.Upgrade, *msg.Scrap, *msg.DeleteLink, *msg.DeleteNode:
+		b.st.command(m)
 	case *msg.Snapshot:
+		b.st.snapshot(frame, m.Payload)
 		if !b.snapSeen && bytes.Contains(m.Payload, []byte(gameWinnerKey)) {
 			b.snapSeen, b.snapAt = true, frame
 			b.snapWin, b.snapOK = snapshotWinner(m.Payload, b.opts.Lua)
@@ -291,6 +299,7 @@ func (b *builder) finish(stopped error) *Summary {
 	s.Warnings = append(s.Warnings, b.tl.Warnings()...)
 	b.result()
 	b.players()
+	b.st.finish(s)
 	return s
 }
 

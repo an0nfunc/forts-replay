@@ -49,7 +49,7 @@ func fixtureFile(tb testing.TB, name string) []byte {
 // steps (frames 2 and 4) and the records in end.
 func game(s fwrtest.Setup, end ...[]byte) []byte {
 	recs := [][]byte{
-		fwrtest.Record(fwrtest.Snapshot("data = { gameFrame = 1, }"), true),
+		fwrtest.Record(luaState("data = { gameFrame = 1, }"), true),
 		fwrtest.Record(fwrtest.Tick(4), false), fwrtest.Record(fwrtest.Sync(2), false),
 		fwrtest.Record(fwrtest.Tick(6), false), fwrtest.Record(fwrtest.Sync(4), false),
 	}
@@ -73,7 +73,13 @@ func duel(ranked bool) fwrtest.Setup {
 }
 
 func won(side int) []byte {
-	return fwrtest.Snapshot(fmt.Sprintf("data = { gameEnded = true, gameWinner = %d, }", side))
+	return luaState(fmt.Sprintf("data = { gameEnded = true, gameWinner = %d, }", side))
+}
+
+// luaState returns a snapshot payload with one Lua section, text, and a
+// minimal state: no teams, one node, one material.
+func luaState(text string) []byte {
+	return fwrtest.State{Lua: []string{text}, Nodes: []fwrtest.Node{{ID: 1, Kind: 0xff}}, Materials: []string{"m"}}.Payload()
 }
 
 func TestBuildFixtures(t *testing.T) {
@@ -95,7 +101,33 @@ func TestBuildFixtures(t *testing.T) {
 		Options: []string{"repair_station", "weapon_pack", "dlc1_portal_skirmish", "dlc1_weapons_skirmish", "dlc3"},
 		Players: []Player{me}, AI: []AI{{Team: 102, Side: 2}},
 		Commanders: []Commander{{Side: 1, Name: "commander-fb-fulminator"}, {Side: 2, Name: "commander-da-overclocker"}},
-		Blocks:     3, Records: 392, Warnings: []string{},
+		State: &StateSeries{
+			Frames: []int64{-1, 128, 256},
+			Teams: []TeamSeries{
+				{
+					Team: 1, Side: 1,
+					Metal: []float32{600, 600, 600}, Energy: []float32{3000, 3000, 3000},
+					MaxMetal: []float32{600, 600, 600}, MaxEnergy: []float32{3000, 3000, 3000},
+					FloatedMetal: []float32{1.04, 67.080055, 133.6406}, FloatedEnergy: []float32{8.0001955, 516.0121, 1028.0277},
+					DamageDealt: []float32{0, 0, 0}, ReactorHealth: []float64{100, 100, 100},
+					Struts: []int{69, 69, 69}, StrutHP: []float64{11100, 11100, 11100}, StrutsLost: []int{0, 0, 0}, Nodes: []int{31, 31, 31},
+					Devices: []int{4, 4, 4}, Weapons: []int{1, 1, 1},
+				},
+				{
+					Team: 102, Side: 2,
+					Metal: []float32{600, 600, 213.0001}, Energy: []float32{3000, 3000, 1100.0022},
+					MaxMetal: []float32{600, 600, 600}, MaxEnergy: []float32{3000, 3000, 3000},
+					FloatedMetal: []float32{1.04, 43.384357, 86.88799}, FloatedEnergy: []float32{8.0001955, 397.53354, 759.2619},
+					DamageDealt: []float32{0, 0, 0}, ReactorHealth: []float64{100, 100, 100},
+					Struts: []int{69, 71, 72}, StrutHP: []float64{11100, 11400, 11300}, StrutsLost: []int{0, 0, 0}, Nodes: []int{31, 32, 32},
+					Devices: []int{4, 4, 5}, Weapons: []int{1, 1, 1},
+				},
+			},
+			Sides:   []SideSeries{{Side: 1, DamageTaken: []float32{0, 0, 0}}, {Side: 2, DamageTaken: []float32{0, 0, 0}}},
+			Players: []PlayerSeries{{Slot: 0, Team: []int32{1, 1, 1}, Damage: []float32{0, 0, 0}, APM: []float32{0, 0, 20}}},
+		},
+		DeviceTypes: map[uint16]string{0: "machinegun", 30: "reactor", 31: "mine", 46: "armoury"},
+		Blocks:      3, Records: 392, Warnings: []string{},
 	}
 	if !reflect.DeepEqual(s, want) {
 		t.Errorf("278f:\n got %+v\nwant %+v", s, want)
@@ -144,7 +176,7 @@ func TestResultRules(t *testing.T) {
 		{"team mismatch", duel(true), [][]byte{fwrtest.Result(0, 1, 102, opponentSteamID)}, &Result{1, 4, SourceRanked}, testSteamID, "ranked result team 102, recorder team 101"},
 		{"recorder entry on another team", otherTeam, [][]byte{fwrtest.Result(0, 1, 101, testSteamID)}, &Result{1, 4, SourceRanked}, testSteamID, "ranked result team 101, recorder team 101, recorder entry team 102"},
 		{"not ranked", duel(false), [][]byte{fwrtest.Result(0, 1, 101, testSteamID)}, &Result{1, 4, SourceRanked}, testSteamID, "ranked result record in a replay that is not ranked"},
-		{"only the first winner snapshot", duel(false), [][]byte{fwrtest.Snapshot(`data = { note = "gameWinner", }`), won(1)}, nil, testSteamID, "snapshot at frame 4 mentions gameWinner, but no data table holds it"},
+		{"only the first winner snapshot", duel(false), [][]byte{luaState(`data = { note = "gameWinner", }`), won(1)}, nil, testSteamID, "snapshot at frame 4 mentions gameWinner, but no data table holds it"},
 	}
 	for _, c := range cases {
 		s := buildFile(t, game(c.setup, c.end...))

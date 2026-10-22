@@ -17,13 +17,16 @@ import (
 // outside the repository; CI does not set it. Replays of header version 1383
 // must build without warnings or invalid records; in those with more than
 // one player entry, every entry must hold a SteamID; ranked ones must carry
-// the game's result and the recorder's SteamID.
+// the game's result and the recorder's SteamID. Every snapshot state must
+// decode.
 func TestCorpus(t *testing.T) {
 	root := os.Getenv("FWR_CORPUS")
 	if root == "" {
 		t.Skip("FWR_CORPUS not set")
 	}
 	n := 0
+	var snaps, failed, losses, weapons, strutsLost, types int
+	names := map[string]bool{}
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error { //nolint:gosec // G703: the developer names the corpus in FWR_CORPUS
 		if err != nil || d.IsDir() || filepath.Ext(path) != ".fwr" {
 			return err
@@ -34,10 +37,16 @@ func TestCorpus(t *testing.T) {
 			return err
 		}
 		defer f.Close()
-		invalid := 0
+		invalid, fileSnaps, fileFailed := 0, 0, 0
 		s, err := Build(t.Context(), f, Options{Observe: func(_ stream.Record, _ int64, m msg.Message) {
-			if _, ok := m.(*msg.Invalid); ok {
+			switch m := m.(type) {
+			case *msg.Invalid:
 				invalid++
+			case *msg.Snapshot:
+				fileSnaps++
+				if _, decErr := decodeState(m.Payload); decErr != nil {
+					fileFailed++
+				}
 			}
 		}})
 		switch {
@@ -46,6 +55,8 @@ func TestCorpus(t *testing.T) {
 			return nil
 		case s.FormatVersion != 1383:
 			return nil
+		case fileFailed > 0:
+			t.Errorf("%s: %d of %d snapshot states do not decode", rel, fileFailed, fileSnaps)
 		case len(s.Warnings) > 0 || invalid > 0:
 			t.Errorf("%s: %d invalid, warnings %q", rel, invalid, s.Warnings)
 		case len(s.Players) > 1 && slices.ContainsFunc(s.Players, func(p Player) bool { return p.SteamID == 0 }):
@@ -54,10 +65,30 @@ func TestCorpus(t *testing.T) {
 			t.Errorf("%s: ranked without the game's result or a SteamID", rel)
 		}
 		n++
+		snaps += fileSnaps
+		failed += fileFailed
+		losses += len(s.Losses)
+		for _, l := range s.Losses {
+			if l.Weapon {
+				weapons++
+			}
+		}
+		if s.State != nil {
+			for _, ts := range s.State.Teams {
+				for _, k := range ts.StrutsLost {
+					strutsLost += k
+				}
+			}
+		}
+		types += len(s.DeviceTypes)
+		for _, name := range s.DeviceTypes {
+			names[name] = true
+		}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%d replays", n)
+	t.Logf("%d replays; %d snapshots, %d state decode errors; %d losses (%d weapons), %d struts lost; %d device types (%d names)",
+		n, snaps, failed, losses, weapons, strutsLost, types, len(names))
 }

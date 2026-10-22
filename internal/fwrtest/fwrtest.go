@@ -292,6 +292,63 @@ func Ability(player uint32) []byte {
 	return p
 }
 
+// Place returns a place payload (0xd2) from player on the strut from node
+// a to node b (0 and 0 on the ground); moved is the device being moved, -1
+// for a new one.
+func Place(player uint32, team int32, typeID, a, b uint32, moved int32) []byte {
+	p := command(0xd2, 67, player, team)
+	le := binary.LittleEndian
+	le.PutUint32(p[32:], typeID)
+	le.PutUint32(p[36:], a)
+	le.PutUint32(p[40:], b)
+	p[52] = 1
+	le.PutUint16(p[57:], 1)
+	le.PutUint32(p[59:], uint32(moved))
+	return p
+}
+
+// Upgrade returns an upgrade payload (0xd5) for device.
+func Upgrade(player uint32, team int32, device uint32) []byte {
+	p := command(0xd5, 36, player, team)
+	binary.LittleEndian.PutUint32(p[28:], device)
+	return p
+}
+
+// Scrap returns a scrap payload (0xd6) for device.
+func Scrap(player uint32, team int32, device uint32) []byte {
+	p := command(0xd6, 34, player, team)
+	binary.LittleEndian.PutUint32(p[28:], device)
+	return p
+}
+
+// DeleteLink returns a strut delete payload (0xce) for the strut from node
+// a to node b.
+func DeleteLink(player uint32, team int32, a, b uint32) []byte {
+	p := command(0xce, 41, player, team)
+	le := binary.LittleEndian
+	le.PutUint32(p[28:], a)
+	le.PutUint32(p[32:], b)
+	le.PutUint32(p[37:], math.Float32bits(-1))
+	return p
+}
+
+// DeleteNode returns a node delete payload (0xcc) for node.
+func DeleteNode(player uint32, team int32, node uint32) []byte {
+	p := command(0xcc, 33, player, team)
+	binary.LittleEndian.PutUint32(p[28:], node)
+	return p
+}
+
+// command returns an n-byte command payload of type t from player, with
+// the sender's team at offset 24.
+func command(t byte, n int, player uint32, team int32) []byte {
+	p := make([]byte, n)
+	p[0], p[17] = t, t
+	binary.LittleEndian.PutUint32(p[20:], player)
+	binary.LittleEndian.PutUint32(p[24:], uint32(team))
+	return p
+}
+
 // State is the content of a snapshot payload with its binary state, as
 // Payload lays it out.
 type State struct {
