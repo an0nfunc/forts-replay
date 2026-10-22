@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/an0nfunc/forts-replay/internal/fixture"
 	"github.com/an0nfunc/forts-replay/internal/fwrtest"
@@ -378,6 +379,48 @@ func TestInfoMaxCommands(t *testing.T) {
 	}
 	if code, out, _ := runCmd(t, "info", "--max-commands", "0", file); code != 0 || !strings.Contains(out, "\ncommands   player 1: ability=70000\n") {
 		t.Errorf("text: exit %d, %s", code, out)
+	}
+}
+
+// TestInfoHostileNames sends names with control, format and bidi
+// characters through the real info encoders: neither output holds an
+// unprintable rune, and the JSON gives the names back unchanged.
+func TestInfoHostileNames(t *testing.T) {
+	names := []string{
+		"\x1b[31mred", "\u202eevil", "a\u2028b\u2029c", "del\x7f\"q\\",
+		"\ufeffbom<>&", "zw\u200dj", "soft\u00adhy", "tag\U000E0041", "c1\u009b31m", "cr\r\nlf",
+	}
+	s := fwrtest.Setup{Map: "maps/Test/Test.fwe", Recorder: 1, RecorderTeam: 101}
+	for i, name := range names {
+		id := uint32(i + 1)
+		s.Players = append(s.Players, fwrtest.Player{Slot: id - 1, ID: id, Team: int32(100*(i/2+1) + i%2 + 1), Name: name})
+	}
+	recs := bytes.Join([][]byte{fwrtest.Record(fwrtest.Tick(4), true), fwrtest.Record(fwrtest.Sync(2), false)}, nil)
+	file := write(t, t.TempDir(), "names.fwr", fwrtest.File(fwrtest.Header{Version: 1383, Frames: 2, Extra: s.Extra()}, recs))
+	for _, args := range [][]string{{"info", "--json", file}, {"info", file}} {
+		code, out, errOut := runCmd(t, args...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d, %s", args, code, errOut)
+		}
+		for _, r := range out + errOut {
+			if r != '\n' && !unicode.IsPrint(r) {
+				t.Errorf("%v: rune %U in output", args, r)
+			}
+		}
+	}
+	_, out, _ := runCmd(t, "info", "--json", file)
+	var d struct {
+		Players []struct {
+			Name string `json:"name"`
+		} `json:"players"`
+	}
+	if err := json.Unmarshal([]byte(out), &d); err != nil || len(d.Players) != len(names) {
+		t.Fatalf("%v, %d players", err, len(d.Players))
+	}
+	for i, p := range d.Players {
+		if p.Name != names[i] {
+			t.Errorf("player %d: name %q, want %q", i+1, p.Name, names[i])
+		}
 	}
 }
 
