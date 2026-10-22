@@ -14,3 +14,16 @@ types      0x92=35 0x93=2 0x95=53 0x97=17 0xbe=624 0xc0=624 0xd2=2 0xe1=10 0xe6=
 syncs      624, last at frame 1248
 commands   player 1: place=2
 build      player 1 at 11.52 s: place type 38
+economy    team 1: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+economy    team 102: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+losses     team 1: weapons 0, other devices 0, struts 0
+losses     team 102: weapons 0, other devices 0, struts 0
+reactor    team 1: health 100.0
+reactor    team 102: health 100.0
+damage     team 1: dealt 0.0
+damage     team 102: dealt 0.0
+builds     team 1: 1
+builds     team 102: 3
+taken      side 1: 0.0
+taken      side 2: 0.0
+damage     player 1: 0.0, mean APM 7.0

@@ -377,11 +377,304 @@ func TestInfoMaxCommands(t *testing.T) {
 			t.Errorf("%v: %d bytes of output", c.args, len(out))
 		}
 	}
-	if code, _, errOut := runCmd(t, "info", "--json", "--max-commands", "-1", file); code != 2 || !strings.Contains(errOut, "usage: fwr info [--json] [--max-commands N] FILE") {
+	if code, _, errOut := runCmd(t, "info", "--json", "--max-commands", "-1", file); code != 2 || !strings.Contains(errOut, "usage: fwr info [--json] [--max-commands N] [--max-states N] [--max-losses N] [--max-builds N] FILE") {
 		t.Errorf("-1: exit %d, stderr %q", code, errOut)
 	}
 	if code, out, _ := runCmd(t, "info", "--max-commands", "0", file); code != 0 || !strings.Contains(out, "\ncommands   player 1: ability=70000\n") {
 		t.Errorf("text: exit %d, %s", code, out)
+	}
+}
+
+// stateFile writes a synthetic replay of header version v from setup s:
+// snapshot i at frame f0 + 10i.
+func stateFile(t *testing.T, name string, v, f0 uint32, s fwrtest.Setup, snaps []fwrtest.State) string {
+	t.Helper()
+	var recs [][]byte
+	f := f0
+	for i, st := range snaps {
+		f = f0 + 10*uint32(i)
+		recs = append(recs, fwrtest.Record(fwrtest.Tick(f+2), i == 0), fwrtest.Record(fwrtest.Sync(f), false), fwrtest.Record(st.Payload(), false))
+	}
+	return write(t, t.TempDir(), name, fwrtest.File(fwrtest.Header{Version: v, Frames: f, Extra: s.Extra()}, bytes.Join(recs, nil)))
+}
+
+// ground is a device's node ID on the ground.
+const ground = 0xffffffff
+
+// TestInfoMaxStates: --max-states, --max-losses and --max-builds bound the
+// state series, the losses and the builds like --max-commands bounds the
+// timeline.
+func TestInfoMaxStates(t *testing.T) {
+	// Snapshot k holds the reactor and devices 10+k-1 and 10+k, each new in
+	// its first snapshot: device 10+k finishes at k and is lost at k+2.
+	const n = 150
+	s := fwrtest.Setup{
+		Map: "maps/Test/Test.fwe", Recorder: 1, RecorderTeam: 101,
+		Players: []fwrtest.Player{{Slot: 0, ID: 1, Team: 101, Name: "Alpha"}},
+	}
+	snaps := make([]fwrtest.State, n)
+	for k := range snaps {
+		dev := func(id uint32, typ uint16, name string) fwrtest.Device {
+			return fwrtest.Device{ID: id, Name: name, Team: 101, Type: typ, Health: 100, Progress: 1, NodeA: ground, NodeB: ground}
+		}
+		devs := []fwrtest.Device{dev(1, 0, "reactor"), dev(uint32(10+k), 1, "store")}
+		if k > 0 {
+			devs = append(devs, dev(uint32(9+k), 1, "store"))
+		}
+		snaps[k] = fwrtest.State{
+			NextNode: 2, NextDevice: uint32(11 + k), Lua: []string{"data = { }"},
+			Teams: []fwrtest.Team{{ID: 0}, {ID: 101}}, Nodes: []fwrtest.Node{{ID: 1, Team: 101, Kind: 0xff}},
+			Devices: devs, Materials: []string{"m"},
+		}
+	}
+	file := stateFile(t, "states.fwr", 1383, 10, s, snaps)
+	type counts struct{ states, losses, builds int }
+	all := counts{n, n - 2, n - 2}
+	for _, c := range []struct {
+		args []string
+		want counts
+		cut  string // substring of stderr; "" means no cut warning
+	}{
+		{nil, all, ""},
+		{[]string{"--max-states", "100"}, counts{100, all.losses, all.builds}, "state series cut at 100 points, 50 more counted only"},
+		{[]string{"--max-losses", "100"}, counts{all.states, 100, all.builds}, "losses cut at 100, 48 more counted only"},
+		{[]string{"--max-builds", "100"}, counts{all.states, all.losses, 100}, "builds cut at 100, 48 more counted only"},
+		{[]string{"--max-states", "0"}, counts{0, all.losses, all.builds}, ""},
+		{[]string{"--max-losses", "0"}, counts{all.states, 0, all.builds}, ""},
+		{[]string{"--max-builds", "0"}, counts{all.states, all.losses, 0}, ""},
+	} {
+		code, out, errOut := runCmd(t, slices.Concat([]string{"info", "--json"}, c.args, []string{file})...)
+		var d struct {
+			State *struct {
+				Frames []int64 `json:"frames"`
+			} `json:"state"`
+			Losses []json.RawMessage `json:"losses"`
+			Builds []json.RawMessage `json:"builds"`
+		}
+		if err := json.Unmarshal([]byte(out), &d); code != 0 || err != nil {
+			t.Fatalf("%v: exit %d, %v", c.args, code, err)
+		}
+		var got counts
+		if d.State != nil {
+			got.states = len(d.State.Frames)
+		}
+		got.losses, got.builds = len(d.Losses), len(d.Builds)
+		if got != c.want || c.cut == "" && strings.Contains(errOut, "cut at") || !strings.Contains(errOut, c.cut) {
+			t.Errorf("%v: %+v, stderr %q", c.args, got, errOut)
+		}
+	}
+	for _, flag := range []string{"--max-states", "--max-losses", "--max-builds"} {
+		if code, _, errOut := runCmd(t, "info", "--json", flag, "-1", file); code != 2 || !strings.Contains(errOut, "usage: fwr info") {
+			t.Errorf("%s -1: exit %d, stderr %q", flag, code, errOut)
+		}
+	}
+}
+
+// TestInfoStateSize measures the info --json bytes per state series point,
+// per loss and per build, and the rest of the output with every cap at 0,
+// on a replay that maximises each: 18 teams that each own devices, 16
+// players over the 9 player slots, header strings and names at their
+// maximum length in a byte encoding/json escapes to six, values of maximum
+// printed width and 1024 device types. The per-team counts are not at their
+// widest, which can add about 270 bytes per point; README.md's figures
+// leave room for that.
+func TestInfoStateSize(t *testing.T) {
+	const (
+		maxPointBytes = 8448   // 8364 on this replay
+		maxLossBytes  = 560    // 543 on this replay
+		maxBuildBytes = 560    // 543 on this replay
+		maxRestBytes  = 819200 // 816763 on this replay
+	)
+	file := worstStateFile(t)
+	size := func(args ...string) (int, string) {
+		code, out, errOut := runCmd(t, slices.Concat([]string{"info", "--json"}, args, []string{file})...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d, stderr %q", args, code, errOut)
+		}
+		return len(out), errOut
+	}
+	for _, c := range []struct {
+		flag string
+		max  int
+	}{{"--max-states", maxPointBytes}, {"--max-losses", maxLossBytes}, {"--max-builds", maxBuildBytes}} {
+		var n [3]int
+		for k := 1; k <= 2; k++ {
+			var errOut string
+			n[k], errOut = size(c.flag, strconv.Itoa(k))
+			if !strings.Contains(errOut, "cut at "+strconv.Itoa(k)) {
+				t.Fatalf("%s %d: stderr %q", c.flag, k, errOut)
+			}
+		}
+		per := n[2] - n[1]
+		t.Logf("%s: %d bytes per entry", c.flag, per)
+		if per <= 0 || per > c.max {
+			t.Errorf("%s: %d bytes per entry, bound %d", c.flag, per, c.max)
+		}
+	}
+	rest, _ := size("--max-commands", "0", "--max-states", "0", "--max-losses", "0", "--max-builds", "0")
+	t.Logf("rest: %d bytes", rest)
+	if rest > maxRestBytes {
+		t.Errorf("rest: %d bytes, bound %d", rest, maxRestBytes)
+	}
+}
+
+// worstStateFile writes the replay TestInfoStateSize measures: three
+// snapshots, so that every limit of 1 or 2 cuts and the warnings keep their
+// length. Three devices vanish after the first and three new ones finish
+// in the second.
+func worstStateFile(t *testing.T) string {
+	t.Helper()
+	const (
+		wide = -1.2345679e20  // a float32 in [1e20, 1e21) prints 21 digits in encoding/json's 'f' form
+		tiny = -1.0000001e-06 // its float64 sum prints -0.0000010000001111620804
+	)
+	esc := func(n int) string { return strings.Repeat("<", n) } // encoding/json writes \u003c
+	s := fwrtest.Setup{
+		Options: slices.Repeat([]string{esc(1024)}, 64), Map: esc(1020) + ".fwe",
+		Commanders: [2]string{esc(49), esc(49)}, Recorder: math.MaxUint32, RecorderTeam: math.MaxInt32 - 46,
+	}
+	for k := range uint32(16) { // the header's maximum, over the 9 slots
+		s.Players = append(s.Players, fwrtest.Player{
+			Slot: k % 9, ID: math.MaxUint32 - k, Team: math.MaxInt32 - 46 + int32(k%2), Name: esc(15), SteamID: 0x01100001ffffffff,
+		})
+	}
+	for range 16 {
+		s.AI = append(s.AI, fwrtest.AI{Team: math.MinInt32, Value: 1})
+	}
+	base := fwrtest.State{
+		NextNode: math.MaxUint32, NextDevice: math.MaxUint32 - 10, Lua: []string{"data = { }"}, Materials: []string{"m"},
+		Teams: []fwrtest.Team{{}}, DamageTaken: [2]float32{wide, wide},
+	}
+	for k := range base.Slots {
+		base.Slots[k] = fwrtest.Slot{Team: math.MinInt32, APM: wide, Damage: wide}
+	}
+	var teams []int32
+	for j := range int32(18) {
+		teams = append(teams, math.MinInt32+j)
+	}
+	// 1023 weapons of distinct types spread over the teams, then each
+	// team's reactor, whose type renames the first.
+	const firstType = math.MaxUint16 - 1023
+	for i := range 1023 {
+		base.Devices = append(base.Devices, fwrtest.Device{
+			ID: uint32(100 + i), Name: esc(64), Team: teams[i%len(teams)], Type: uint16(firstType + i),
+			Health: wide, Progress: 1, NodeA: ground, NodeB: ground, Weapon: true,
+		})
+	}
+	for k, id := range teams {
+		base.Teams = append(base.Teams, fwrtest.Team{
+			ID: id, Metal: wide, Energy: wide, MaxMetal: wide, MaxEnergy: wide, FloatedMetal: wide, FloatedEnergy: wide, DamageDealt: wide,
+		})
+		a := 2 * k
+		base.Nodes = append(base.Nodes, fwrtest.Node{ID: uint32(a + 1), Team: id, Kind: 0xff}, fwrtest.Node{ID: uint32(a + 2), Team: id, Kind: 0xff})
+		base.Links = append(base.Links, fwrtest.Link{A: a, B: a + 1, HP: tiny, State: 1, Device: -1})
+		base.Devices = append(base.Devices, fwrtest.Device{
+			ID: uint32(k + 1), Name: "reactor", Team: id, Type: firstType, Health: tiny, NodeA: ground, NodeB: ground,
+		})
+	}
+	event := func(id uint32) fwrtest.Device { // lost or finished
+		return fwrtest.Device{ID: id, Name: esc(64), Team: math.MinInt32, Type: math.MaxUint16, Health: wide, Progress: 1, NodeA: ground, NodeB: ground}
+	}
+	snaps := []fwrtest.State{base, base, base}
+	for i := range snaps {
+		snaps[i].Devices = slices.Clone(base.Devices)
+	}
+	for i := range uint32(3) {
+		snaps[0].Devices = append(snaps[0].Devices, event(math.MaxUint32-20-i))
+		snaps[1].Devices = append(snaps[1].Devices, event(math.MaxUint32-i))
+	}
+	snaps[2].Devices = snaps[1].Devices
+	return stateFile(t, "worst.fwr", 1383, math.MaxUint32-41, s, snaps)
+}
+
+// TestInfoState: the text rows of the match state.
+func TestInfoState(t *testing.T) {
+	for name, rows := range map[string][]string{
+		"area-repair-damaged.fwr": {
+			"economy    team 1: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0\n",
+			"losses     team 1: weapons 1, other devices 0, struts 5\n",
+			"reactor    team 1: health 30.4\nreactor    team 102: health 100.0\n",
+		},
+		"damage-weapons.fwr": {
+			"damage     team 1: dealt 7882.1\ndamage     team 102: dealt 0.0\n",
+			"builds     team 1: 4, first weapon \"sniper\" at frame 510\n",
+			"taken      side 1: 0.0\ntaken      side 2: 7882.1\n",
+			"damage     player 1: 8496.6, mean APM 9.2\n",
+		},
+		"economy-storage.fwr": {
+			"economy    team 1: floated metal 4557.7, energy 39127.2; peak storage metal 900.0, energy 5000.0\n",
+		},
+	} {
+		code, out, errOut := runCmd(t, "info", fixturePath(t, name))
+		if code != 0 {
+			t.Fatalf("%s: exit %d, %s", name, code, errOut)
+		}
+		for _, r := range rows {
+			if !strings.Contains(out, r) {
+				t.Errorf("%s: no %q in\n%s", name, r, out)
+			}
+		}
+	}
+}
+
+// TestDumpState: dump shows each snapshot's state, or why it does not
+// decode.
+func TestDumpState(t *testing.T) {
+	st := fwrtest.State{
+		NextNode: 3, NextDevice: 2, Lua: []string{"data = { }"},
+		Teams:       []fwrtest.Team{{}, {ID: 101, Metal: 50.5, Energy: 900, MaxMetal: 600, MaxEnergy: 3000, FloatedMetal: 1.25, FloatedEnergy: 2.5, DamageDealt: 126}},
+		DamageTaken: [2]float32{3, 126},
+		Nodes:       []fwrtest.Node{{ID: 1, Team: 101, Kind: 0xff}, {ID: 2, Team: 101, Kind: 0xff}},
+		Devices:     []fwrtest.Device{{ID: 1, Name: "reactor", Team: 101, Health: 100, NodeA: ground, NodeB: ground}},
+		Materials:   []string{"m"},
+		Links:       []fwrtest.Link{{A: 0, B: 1, HP: 50, State: 1, Device: -1}},
+	}
+	st.Slots[0] = fwrtest.Slot{Team: 101, APM: 30, Damage: 120}
+	st.Slots[5] = fwrtest.Slot{Team: -3}
+	file := stateFile(t, "state.fwr", 1383, 10, fwrtest.Setup{}, []fwrtest.State{st})
+	code, out, _ := runCmd(t, "dump", "--json", "--type", "0xe1", file)
+	docs := jsonLines(t, out)
+	if code != 0 || len(docs) != 2 {
+		t.Fatalf("exit %d, %d docs", code, len(docs))
+	}
+	got, err := json.Marshal(docs[0]["state"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"devices":1,"links":1,"nodes":2,` +
+		`"sides":[{"damage_taken":3,"side":1},{"damage_taken":126,"side":2}],` +
+		`"slots":[{"apm":30,"damage":120,"slot":0,"team":101},{"apm":0,"damage":0,"slot":5,"team":-3}],` +
+		`"teams":[{"damage_dealt":0,"energy":0,"floated_energy":0,"floated_metal":0,"max_energy":0,"max_metal":0,"metal":0,"team":0},` +
+		`{"damage_dealt":126,"energy":900,"floated_energy":2.5,"floated_metal":1.25,"max_energy":3000,"max_metal":600,"metal":50.5,"team":101}]}`
+	if string(got) != want {
+		t.Errorf("state %s\nwant  %s", got, want)
+	}
+	code, out, _ = runCmd(t, "dump", "--type", "0xe1", file)
+	line := "\n  state team=0 metal=0/0 floated=0 energy=0/0 floated=0 dealt=0" +
+		" team=101 metal=50.5/600 floated=1.25 energy=900/3000 floated=2.5 dealt=126 taken=3,126" +
+		" slot=0 team=101 apm=30 damage=120 slot=5 team=-3 apm=0 damage=0 nodes=2 devices=1 links=1\n"
+	if code != 0 || !strings.Contains(out, line) {
+		t.Errorf("exit %d, text %q", code, out)
+	}
+	dir := t.TempDir()
+	for name, c := range map[string]struct {
+		version uint32
+		payload []byte
+		msg     string
+	}{
+		"v1331.fwr": {1331, st.Payload(), "not decoded for version 1331"},
+		"lua.fwr":   {1383, fwrtest.Snapshot("data = { }"), "state: corrupt"},
+	} {
+		f, v, msg := write(t, dir, name, fwrtest.File(fwrtest.Header{Version: c.version}, fwrtest.Record(c.payload, true))), c.version, c.msg
+		_, out, _ := runCmd(t, "dump", "--json", f)
+		d := jsonLines(t, out)[0]
+		e, _ := d["state"].(map[string]any)
+		if len(e) != 1 || !strings.HasPrefix(fmt.Sprint(e["error"]), msg) {
+			t.Errorf("version %d: state %v", v, d["state"])
+		}
+		if _, out, _ := runCmd(t, "dump", f); !strings.Contains(out, "\n  state error: "+msg) {
+			t.Errorf("version %d: text %q", v, out)
+		}
 	}
 }
 
@@ -472,6 +765,7 @@ func TestInfoSchema(t *testing.T) {
 	corpusFiles := []string{
 		"portal-link.fwr", "ammo-select.fwr", "swarm-missiles.fwr", "toggles.fwr",
 		"area-repair-damaged.fwr", "device-repair.fwr", "strut-repair.fwr", "swarm-immediate-fire.fwr",
+		"economy-storage.fwr", "damage-weapons.fwr",
 	}
 	for _, name := range slices.Concat(fixture.Names, fixture.Probes, corpusFiles) {
 		files = append(files, fixturePath(t, name))

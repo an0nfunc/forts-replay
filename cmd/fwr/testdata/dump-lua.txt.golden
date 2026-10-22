@@ -1,4 +1,5 @@
 blk=0 off=0x00000 frame=- type=0xe1 len=283 kf snapshot sections=3
+  state error: state: corrupt: payload of 283 bytes ends before offset 3020
   section 0 name="" off=0x5 len=84
 data = { gameFrame = 1, gameTime = 0.04, DoorsOpened = false, ScheduledCalls = {}, }
   section 1 name="scripts/test.lua" off=0x75 len=141

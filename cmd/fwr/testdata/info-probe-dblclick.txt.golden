@@ -14,3 +14,16 @@ build      player 1 at 20.56 s: place type 0
 build      player 1 at 21.84 s: place type 0
 build      player 1 at 23.20 s: place type 0
 build      player 1 at 34.32 s: place type 4
+economy    team 1: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+economy    team 2: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+losses     team 1: weapons 0, other devices 0, struts 0
+losses     team 2: weapons 0, other devices 0, struts 0
+reactor    team 1: health 100.0
+reactor    team 2: health 100.0
+damage     team 1: dealt 6.0
+damage     team 2: dealt 0.0
+builds     team 1: 4, first weapon "machinegun" at frame 636
+builds     team 2: 0
+taken      side 1: 0.0
+taken      side 2: 6.0
+damage     player 1: 6.0, mean APM 10.0

@@ -16,3 +16,16 @@ commands   player 1: place=1 upgrade=2
 build      player 1 at 19.28 s: place type 0
 build      player 1 at 28.64 s: upgrade device 10
 build      player 1 at 38.96 s: upgrade device 12
+economy    team 1: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+economy    team 102: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+losses     team 1: weapons 0, other devices 0, struts 0
+losses     team 102: weapons 0, other devices 0, struts 0
+reactor    team 1: health 100.0
+reactor    team 102: health 100.0
+damage     team 1: dealt 0.0
+damage     team 102: dealt 0.0
+builds     team 1: 1, first weapon "machinegun" at frame 1140
+builds     team 102: 3
+taken      side 1: 0.0
+taken      side 2: 0.0
+damage     player 1: 0.0, mean APM 9.1

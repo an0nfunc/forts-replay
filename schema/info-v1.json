@@ -18,9 +18,9 @@
     "result": {"$ref": "#/$defs/result"},
     "timelines": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/timeline"}, "description": "Commands per player, by player ID."},
     "state": {"$ref": "#/$defs/state"},
-    "losses": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/loss"}, "description": "Devices that vanished between two decoded snapshots with no upgrade or move naming them in the last two snapshot intervals and without being scrapped (an odd number of scrap commands named them), in snapshot order. Approximate: the AI's own actions are not recorded."},
-    "builds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/build"}, "description": "Devices finished during the match, the starting forts left out, by frame, then device ID. Approximate: a device's build time is not stored, so a build is confirmed when its build progress holds, or falls after a rise slower than the time elapsed."},
-    "device_types": {"type": "object", "minProperties": 1, "maxProperties": 1024, "propertyNames": {"pattern": "^(0|[1-9][0-9]{0,4})$"}, "additionalProperties": {"$ref": "#/$defs/save_name"}, "description": "Device type ID to the game's save-name, from the snapshots, naming the type_id of place commands. Header version 1383 only."},
+    "losses": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/loss"}, "description": "Devices lost, in snapshot order: each vanished between two decoded snapshots with no sign that its owner removed it. The signs are an upgrade, or a move (a place command with moved_device), naming it in the last two snapshot intervals; an odd number of scrap commands naming it while it stood, however long ago (a second scrap cancels the first); a Phantom move's destination on its node pair, where the move leaves a temporary device; and a new device of its team with another name on its node pair that the team did not place there (an upgrade the AI makes, which records no command). A weapon lost was sniped or fell with its fort. Approximate: a device lost in the same interval as a move onto its node pair counts as moved, and a Phantom move on the ground leaves a temporary device that counts as lost."},
+    "builds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/build"}, "description": "Devices finished during the match, the starting forts left out, by frame, then device ID. Approximate: a device's build time is not stored, so a build is confirmed when its build progress (seconds of construction) holds, or falls after a rise slower than the time elapsed. A device destroyed or scrapped while still being built gets none."},
+    "device_types": {"type": "object", "minProperties": 1, "maxProperties": 1024, "propertyNames": {"pattern": "^(0|[1-9][0-9]{0,4})$"}, "additionalProperties": {"$ref": "#/$defs/save_name"}, "description": "Device type ID to the game's save-name, from the snapshots, naming the type_id of place commands. Type IDs shift with the game options, so a map holds for one replay only; a place command's type_id above 65535 has no name. When one ID carries two names, the first stays. At most 1024 entries. Header version 1383 only."},
     "blocks": {"type": "integer", "minimum": 1},
     "records": {"type": "integer", "minimum": 0},
     "truncated": {"type": "boolean", "description": "Decoding stopped early; the rest is what decoded before."},
@@ -37,7 +37,7 @@
     "state": {
       "type": "object",
       "required": ["frames", "teams", "sides", "players"],
-      "description": "Series from the state snapshots, one point per decoded snapshot (every 5 seconds), header version 1383 only. Every series array has as many entries as frames.",
+      "description": "Series from the state snapshots, one point per decoded snapshot (every 5 seconds), header version 1383 only; a snapshot whose state does not decode adds no point and a warning. Every series array has as many entries as frames. Metal and energy are in the units the game shows; health, hit points and damage are in hit points. Per team, struts, strut_hp, struts_lost and nodes describe the fort's stability.",
       "properties": {
         "frames": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/frame"}, "description": "Frame of each snapshot."},
         "teams": {"type": "array", "maxItems": 18, "items": {"$ref": "#/$defs/team_series"}, "description": "Teams of the team list that own a device in a snapshot, team 0 left out, by team ID."},
@@ -58,12 +58,12 @@
         "max_energy": {"$ref": "#/$defs/numbers", "description": "Energy storage cap."},
         "floated_metal": {"$ref": "#/$defs/numbers", "description": "Cumulative metal lost to full storage."},
         "floated_energy": {"$ref": "#/$defs/numbers", "description": "Cumulative energy lost to full storage."},
-        "damage_dealt": {"$ref": "#/$defs/numbers", "description": "Cumulative damage dealt to enemies."},
+        "damage_dealt": {"$ref": "#/$defs/numbers", "description": "Cumulative damage dealt to enemies; damage to the team's own side (friendly fire) does not count."},
         "reactor_health": {"$ref": "#/$defs/numbers", "description": "Summed health of the team's reactors, 0 when none is left."},
-        "struts": {"$ref": "#/$defs/counts", "description": "The team's struts in any state."},
-        "strut_hp": {"$ref": "#/$defs/numbers", "description": "Summed hit points of those struts."},
-        "struts_lost": {"$ref": "#/$defs/counts", "description": "Struts lost since the previous point, approximate."},
-        "nodes": {"$ref": "#/$defs/counts", "description": "The team's nodes with at least one strut."},
+        "struts": {"$ref": "#/$defs/counts", "description": "Fort stability: the team's struts in any state."},
+        "strut_hp": {"$ref": "#/$defs/numbers", "description": "Fort stability: summed hit points of those struts."},
+        "struts_lost": {"$ref": "#/$defs/counts", "description": "Fort stability: struts lost since the previous point. Approximate: a strut that was being deconstructed, or that a delete_link on its nodes or a delete_node on either node in the last two snapshot intervals names, was removed, and one built and lost within one interval does not show."},
+        "nodes": {"$ref": "#/$defs/counts", "description": "Fort stability: the team's nodes with at least one strut."},
         "devices": {"$ref": "#/$defs/counts", "description": "The team's devices, weapons and reactors included."},
         "weapons": {"$ref": "#/$defs/counts", "description": "The team's weapons."}
       }
@@ -71,16 +71,16 @@
     "side_series": {
       "type": "object",
       "required": ["side", "damage_taken"],
-      "properties": {"side": {"enum": [1, 2]}, "damage_taken": {"$ref": "#/$defs/numbers", "description": "Cumulative damage the side took."}}
+      "properties": {"side": {"enum": [1, 2]}, "damage_taken": {"$ref": "#/$defs/numbers", "description": "Cumulative damage the side took, the game's own counter: it can exceed what the other side's teams dealt."}}
     },
     "player_series": {
       "type": "object",
       "required": ["slot", "team", "damage", "apm"],
       "properties": {
         "slot": {"type": "integer", "minimum": 0, "maximum": 8, "description": "The player's slot in players."},
-        "team": {"type": "array", "items": {"$ref": "#/$defs/i32"}, "description": "The player's current team, 0 once they have left."},
-        "damage": {"$ref": "#/$defs/numbers", "description": "Cumulative damage the player dealt, 0 once they have left."},
-        "apm": {"$ref": "#/$defs/numbers", "description": "The game's actions-per-minute figure at the snapshot."}
+        "team": {"type": "array", "items": {"$ref": "#/$defs/i32"}, "description": "The player's current team, following fort switches; 0 once they have left."},
+        "damage": {"$ref": "#/$defs/numbers", "description": "Cumulative damage the player dealt. It drops to 0 when the player leaves, while the team's damage_dealt keeps it, so the player's total is the series maximum, not its last value. Close to the team's counter, not equal to it."},
+        "apm": {"$ref": "#/$defs/numbers", "description": "The game's actions-per-minute figure (ten times the actions in the last 150 frames), sampled at the snapshot."}
       }
     },
     "loss": {
