@@ -52,7 +52,7 @@ func FuzzParse(f *testing.F) {
 		}
 		for _, d := range s.Devices {
 			bad := func(r rune) bool { return r > unicode.MaxASCII || !unicode.IsPrint(r) }
-			if d.Name == "" || len(d.Name) > maxName || strings.ContainsFunc(d.Name, bad) || !finite(d.Health) {
+			if d.Name == "" || len(d.Name) > maxName || strings.ContainsFunc(d.Name, bad) || !finite(d.Health, d.Progress) {
 				t.Fatalf("device %+v", d)
 			}
 		}

@@ -398,6 +398,7 @@ type Device struct {
 	X, Y         float32
 	NodeA, NodeB uint32
 	Health       float32
+	Progress     float32
 	Weapon       bool
 	Beams, A, B  int
 }
@@ -507,7 +508,7 @@ func (s State) rest(p []byte) []byte {
 		p = append(p, d.Name...)
 		p = le.AppendUint32(p, uint32(d.Team))
 		p = le.AppendUint32(p, 0)
-		f32(1)
+		f32(d.Progress)
 		p = le.AppendUint32(p, 0xdededede)
 		body := make([]byte, 168)
 		le.PutUint32(body, d.ID)

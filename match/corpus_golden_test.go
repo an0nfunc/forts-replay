@@ -46,12 +46,13 @@ type corpusDigest struct {
 
 // digestState is the end of the state series: each team's last floated
 // resources and damage dealt, each side's last damage taken, each player's
-// maximum damage, and the losses and struts lost.
+// maximum damage, and the losses, builds and struts lost.
 type digestState struct {
 	Teams      []digestTeam       `json:"teams"`
 	Taken      [2]float32         `json:"taken"`   // side 1, side 2
 	Players    map[uint32]float32 `json:"players"` // maximum damage by slot
 	Losses     int                `json:"losses"`
+	Builds     int                `json:"builds"`
 	StrutsLost int                `json:"struts_lost"`
 }
 
@@ -169,7 +170,7 @@ func digest(t *testing.T, path, rel string) corpusDigest {
 	if ss := s.State; ss != nil {
 		last := len(ss.Frames) - 1
 		ds := &digestState{
-			Teams: []digestTeam{}, Players: map[uint32]float32{}, Losses: len(s.Losses),
+			Teams: []digestTeam{}, Players: map[uint32]float32{}, Losses: len(s.Losses), Builds: len(s.Builds),
 			Taken: [2]float32{ss.Sides[0].DamageTaken[last], ss.Sides[1].DamageTaken[last]},
 		}
 		for _, ts := range ss.Teams {

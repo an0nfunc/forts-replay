@@ -19,6 +19,7 @@ type Limits struct {
 	MaxCommands int // timeline entries over all players; 0 takes the default 65536, a negative value keeps none
 	MaxStates   int // state series points; 0 takes the default 8192, a negative value keeps none
 	MaxLosses   int // losses; 0 takes the default 65536, a negative value keeps none
+	MaxBuilds   int // builds; 0 takes the default 65536, a negative value keeps none
 }
 
 // Entry is one command of a timeline.

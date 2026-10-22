@@ -917,6 +917,40 @@
       }
     ]
   },
+  "builds": [
+    {
+      "frame": 636,
+      "team": 1,
+      "device": 9,
+      "type_id": 0,
+      "name": "machinegun",
+      "weapon": true
+    },
+    {
+      "frame": 636,
+      "team": 1,
+      "device": 10,
+      "type_id": 0,
+      "name": "machinegun",
+      "weapon": true
+    },
+    {
+      "frame": 636,
+      "team": 1,
+      "device": 11,
+      "type_id": 0,
+      "name": "machinegun",
+      "weapon": true
+    },
+    {
+      "frame": 1014,
+      "team": 1,
+      "device": 12,
+      "type_id": 4,
+      "name": "mortar",
+      "weapon": true
+    }
+  ],
   "device_types": {
     "0": "machinegun",
     "30": "reactor",

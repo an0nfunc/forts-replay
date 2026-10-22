@@ -61,7 +61,7 @@ func FuzzBuild(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		opts := Options{
 			Container: container.Limits{MaxBlock: 1 << 20, MaxTotal: 4 << 20},
-			Timeline:  Limits{MaxPlayers: 4, MaxCommands: 64, MaxStates: 4, MaxLosses: 4},
+			Timeline:  Limits{MaxPlayers: 4, MaxCommands: 64, MaxStates: 4, MaxLosses: 4, MaxBuilds: 4},
 		}
 		s, err := Build(t.Context(), bytes.NewReader(data), opts)
 		if err != nil {
@@ -80,8 +80,8 @@ func FuzzBuild(f *testing.F) {
 		if s.State != nil {
 			checkLengths(t, s.State)
 		}
-		if s.State != nil && len(s.State.Frames) > 4 || len(s.Losses) > 4 || len(s.DeviceTypes) > maxDeviceTypes {
-			t.Fatalf("state %+v, %d losses, %d device types", s.State, len(s.Losses), len(s.DeviceTypes))
+		if s.State != nil && len(s.State.Frames) > 4 || len(s.Losses) > 4 || len(s.Builds) > 4 || len(s.DeviceTypes) > maxDeviceTypes {
+			t.Fatalf("state %+v, %d losses, %d builds, %d device types", s.State, len(s.Losses), len(s.Builds), len(s.DeviceTypes))
 		}
 		if _, err := json.Marshal(s); err != nil {
 			t.Fatal(err)

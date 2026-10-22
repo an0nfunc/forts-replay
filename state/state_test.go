@@ -55,9 +55,9 @@ func synthetic() fwrtest.State {
 		},
 		Gap: []byte{0, 1, 1, 0, 0, 0},
 		Devices: []fwrtest.Device{
-			{ID: 7, Name: "reactor", Team: 101, Type: 9, X: -90, Y: 40, NodeA: 1, NodeB: 2, Health: 80.5},
-			{ID: 8, Name: "machinegun", Team: 101, Type: 0, X: -85, Y: 45, NodeA: 1, NodeB: 2, Health: 100, Weapon: true, Beams: 2, A: 1, B: 3},
-			{ID: 10, Name: "battery", Team: 201, Type: 37, X: 90, Y: 0, NodeA: 0xffffffff, NodeB: 0xffffffff, Health: 150},
+			{ID: 7, Name: "reactor", Team: 101, Type: 9, X: -90, Y: 40, NodeA: 1, NodeB: 2, Health: 80.5, Progress: 1},
+			{ID: 8, Name: "machinegun", Team: 101, Type: 0, X: -85, Y: 45, NodeA: 1, NodeB: 2, Health: 100, Progress: 20, Weapon: true, Beams: 2, A: 1, B: 3},
+			{ID: 10, Name: "battery", Team: 201, Type: 37, X: 90, Y: 0, NodeA: 0xffffffff, NodeB: 0xffffffff, Health: 150, Progress: 7.5},
 			{ID: 11, Name: "sniper", Team: 201, Type: 2, X: 95, Y: 45, NodeA: 3, NodeB: 5, Health: 0.25, Weapon: true},
 		},
 		Materials: []string{"bracing", "backbracing", "armour", "door"},
@@ -98,9 +98,9 @@ func syntheticWant() *State {
 			{ID: 9, Team: 0, X: 0, Y: 400},
 		},
 		Devices: []Device{
-			{ID: 7, Name: "reactor", Team: 101, Type: 9, X: -90, Y: 40, NodeA: 1, NodeB: 2, Health: 80.5},
-			{ID: 8, Name: "machinegun", Team: 101, Type: 0, X: -85, Y: 45, NodeA: 1, NodeB: 2, Health: 100, Weapon: true},
-			{ID: 10, Name: "battery", Team: 201, Type: 37, X: 90, Y: 0, NodeA: 0xffffffff, NodeB: 0xffffffff, Health: 150},
+			{ID: 7, Name: "reactor", Team: 101, Type: 9, X: -90, Y: 40, NodeA: 1, NodeB: 2, Health: 80.5, Progress: 1},
+			{ID: 8, Name: "machinegun", Team: 101, Type: 0, X: -85, Y: 45, NodeA: 1, NodeB: 2, Health: 100, Progress: 20, Weapon: true},
+			{ID: 10, Name: "battery", Team: 201, Type: 37, X: 90, Y: 0, NodeA: 0xffffffff, NodeB: 0xffffffff, Health: 150, Progress: 7.5},
 			{ID: 11, Name: "sniper", Team: 201, Type: 2, X: 95, Y: 45, NodeA: 3, NodeB: 5, Health: 0.25, Weapon: true},
 		},
 		Links: []Link{
@@ -237,6 +237,10 @@ func corruptFields(t *testing.T) {
 		{"NaN APM", false, func(s *fwrtest.State) { s.Slots[6].APM = nan }},
 		{"Inf player damage", false, func(s *fwrtest.State) { s.Slots[0].Damage = inf }},
 		{"NaN health", false, func(s *fwrtest.State) { s.Devices[3].Health = nan }},
+		{"NaN build progress", false, func(s *fwrtest.State) { s.Devices[1].Progress = nan }},
+		{"Inf build progress", false, func(s *fwrtest.State) { s.Devices[2].Progress = -inf }},
+		{"Inf device x", false, func(s *fwrtest.State) { s.Devices[0].X = inf }},
+		{"NaN device y", false, func(s *fwrtest.State) { s.Devices[3].Y = nan }},
 		{"Inf strut hit points", false, func(s *fwrtest.State) { s.Links[3].HP = inf }},
 	}
 	for _, c := range cases {

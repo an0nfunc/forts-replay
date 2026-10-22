@@ -112,6 +112,7 @@ type Device struct {
 	X, Y         float32
 	NodeA, NodeB uint32 // 0xffffffff on the ground
 	Health       float32
+	Progress     float32 // seconds of construction; stops at the build time, which is not stored
 	Weapon       bool
 }
 
@@ -331,24 +332,25 @@ func (r *reader) device() item {
 	if v := r.u32(); r.err == nil && v > 1 {
 		r.failf("device at offset %d has flag %d", start, v)
 	}
-	r.skip(4) // f32, not decoded
+	progress := math.Float32frombits(r.u32())
 	r.marker(deviceMarker)
 	body := r.take(deviceBody)
 	if body == nil {
 		return item{}
 	}
 	d := Device{
-		ID:     u32At(body, 0),
-		Team:   i32At(body, 4),
-		Type:   binary.LittleEndian.Uint16(body[16:]),
-		X:      f32At(body, 20),
-		Y:      f32At(body, 24),
-		NodeA:  u32At(body, 32),
-		NodeB:  u32At(body, 36),
-		Health: f32At(body, 44),
+		ID:       u32At(body, 0),
+		Team:     i32At(body, 4),
+		Type:     binary.LittleEndian.Uint16(body[16:]),
+		X:        f32At(body, 20),
+		Y:        f32At(body, 24),
+		NodeA:    u32At(body, 32),
+		NodeB:    u32At(body, 36),
+		Health:   f32At(body, 44),
+		Progress: progress,
 	}
-	if !finite(d.Health) {
-		r.failf("device at offset %d has health %v", start, d.Health)
+	if !finite(d.Health, d.Progress, d.X, d.Y) {
+		r.failf("device at offset %d has health %v, build progress %v and position %v, %v", start, d.Health, d.Progress, d.X, d.Y)
 	}
 	if r.peek32() == weaponMarker {
 		d.Weapon = true

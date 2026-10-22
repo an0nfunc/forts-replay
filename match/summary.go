@@ -58,7 +58,8 @@ type Summary struct {
 	Result        *Result           `json:"result,omitempty"`
 	Timelines     []*PlayerTimeline `json:"timelines,omitempty"` // by player ID
 	State         *StateSeries      `json:"state,omitempty"`     // header version 1383 only
-	Losses        []Loss            `json:"losses,omitempty"`
+	Losses        []DeviceEvent     `json:"losses,omitempty"`
+	Builds        []DeviceEvent     `json:"builds,omitempty"`
 	DeviceTypes   map[uint16]string `json:"device_types,omitempty"` // type ID to save-name, from the snapshots
 	Blocks        int               `json:"blocks"`
 	Records       int               `json:"records"`

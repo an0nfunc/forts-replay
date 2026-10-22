@@ -18,7 +18,8 @@
     "result": {"$ref": "#/$defs/result"},
     "timelines": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/timeline"}, "description": "Commands per player, by player ID."},
     "state": {"$ref": "#/$defs/state"},
-    "losses": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/loss"}, "description": "Devices that vanished between two decoded snapshots with no scrap, upgrade or move naming them, in snapshot order. Approximate: the AI's own actions are not recorded."},
+    "losses": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/loss"}, "description": "Devices that vanished between two decoded snapshots with no upgrade or move naming them in the last two snapshot intervals and without being scrapped (an odd number of scrap commands named them), in snapshot order. Approximate: the AI's own actions are not recorded."},
+    "builds": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/build"}, "description": "Devices finished during the match, the starting forts left out, by frame, then device ID. Approximate: a device's build time is not stored, so a build is confirmed when its build progress holds, or falls after a rise slower than the time elapsed."},
     "device_types": {"type": "object", "minProperties": 1, "maxProperties": 1024, "propertyNames": {"pattern": "^(0|[1-9][0-9]{0,4})$"}, "additionalProperties": {"$ref": "#/$defs/save_name"}, "description": "Device type ID to the game's save-name, from the snapshots, naming the type_id of place commands. Header version 1383 only."},
     "blocks": {"type": "integer", "minimum": 1},
     "records": {"type": "integer", "minimum": 0},
@@ -87,6 +88,18 @@
       "required": ["frame", "team", "device", "type_id", "name", "weapon"],
       "properties": {
         "frame": {"$ref": "#/$defs/frame", "description": "Frame of the first snapshot without the device."},
+        "team": {"$ref": "#/$defs/i32"},
+        "device": {"$ref": "#/$defs/u32"},
+        "type_id": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "name": {"$ref": "#/$defs/save_name"},
+        "weapon": {"type": "boolean"}
+      }
+    },
+    "build": {
+      "type": "object",
+      "required": ["frame", "team", "device", "type_id", "name", "weapon"],
+      "properties": {
+        "frame": {"$ref": "#/$defs/frame", "description": "Frame of the first snapshot at which the device's build progress stands at its final value; it finished in the 5 seconds before."},
         "team": {"$ref": "#/$defs/i32"},
         "device": {"$ref": "#/$defs/u32"},
         "type_id": {"type": "integer", "minimum": 0, "maximum": 65535},
