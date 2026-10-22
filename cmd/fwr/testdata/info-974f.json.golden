@@ -602,5 +602,6 @@
   "blocks": 8,
   "records": 1283,
   "truncated": false,
-  "warnings": []
+  "warnings": [],
+  "parser_version": "(version)"
 }

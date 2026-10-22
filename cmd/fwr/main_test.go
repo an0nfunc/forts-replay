@@ -13,6 +13,8 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -75,11 +77,17 @@ func TestGolden(t *testing.T) {
 	for _, name := range fixture.Probes {
 		cases = append(cases, goldenCase{"info-" + strings.TrimSuffix(name, ".fwr") + ".txt", []string{"info", fixturePath(t, name)}})
 	}
+	version, err := json.Marshal(parserVersion())
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, c := range cases {
 		code, out, errOut := runCmd(t, c.args...)
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", c.name, code, errOut)
 		}
+		// The version depends on how the test binary was built.
+		out = strings.Replace(out, `"parser_version": `+string(version), `"parser_version": "(version)"`, 1)
 		golden := filepath.Join("testdata", c.name+".golden")
 		if *update {
 			if err := os.MkdirAll("testdata", 0o750); err != nil {
@@ -1049,9 +1057,47 @@ func TestNotAReplay(t *testing.T) {
 // file is opened.
 func TestUsage(t *testing.T) {
 	const f = "missing.fwr"
-	for _, args := range [][]string{nil, {"nope"}, {"dump"}, {"dump", "--type", "zz", f}, {"hex", f}, {"extract", f}, {"info"}, {"info", f, f}} {
+	for _, args := range [][]string{nil, {"nope"}, {"dump"}, {"dump", "--type", "zz", f}, {"hex", f}, {"extract", f}, {"info"}, {"info", f, f}, {"version", f}} {
 		if code, _, _ := runCmd(t, args...); code != 2 {
 			t.Errorf("%v: exit %d, want 2", args, code)
+		}
+	}
+}
+
+// TestVersion: fwr version prints the parser's version, info --json
+// carries the same, and moduleVersion reads it from the build info.
+func TestVersion(t *testing.T) {
+	want := parserVersion()
+	if code, out, _ := runCmd(t, "version"); code != 0 || out != want+"\n" {
+		t.Errorf("exit %d, %q, want %q", code, out, want)
+	}
+	if !regexp.MustCompile(`^(v[0-9]\S*|devel( [0-9a-f]+)?(\+dirty)?)$`).MatchString(want) {
+		t.Errorf("version %q", want)
+	}
+	_, out, _ := runCmd(t, "info", "--json", matchFile(t, t.TempDir(), false))
+	var d struct {
+		ParserVersion string `json:"parser_version"`
+	}
+	if err := json.Unmarshal([]byte(out), &d); err != nil || d.ParserVersion != want {
+		t.Errorf("parser_version %q, %v; want %q", d.ParserVersion, err, want)
+	}
+	vcs := []debug.BuildSetting{{Key: "vcs", Value: "git"}, {Key: "vcs.revision", Value: "0123abcd"}, {Key: "vcs.modified", Value: "true"}}
+	other := &debug.Module{Path: "example.com/other", Version: "v9.9.9"}
+	for name, c := range map[string]struct {
+		bi   debug.BuildInfo
+		want string
+	}{
+		"main":                    {debug.BuildInfo{Main: debug.Module{Path: modulePath, Version: "v0.2.0"}, Settings: vcs}, "v0.2.0"},
+		"main, devel":             {debug.BuildInfo{Main: debug.Module{Path: modulePath, Version: "(devel)"}, Settings: vcs}, "devel 0123abcd+dirty"},
+		"main, clean":             {debug.BuildInfo{Main: debug.Module{Path: modulePath, Version: "(devel)"}, Settings: vcs[:2]}, "devel 0123abcd"},
+		"main, no vcs":            {debug.BuildInfo{Main: debug.Module{Path: modulePath}}, "devel"},
+		"dependency":              {debug.BuildInfo{Main: debug.Module{Path: "example.com/site"}, Deps: []*debug.Module{other, {Path: modulePath, Version: "v0.2.1"}}, Settings: vcs}, "v0.2.1"},
+		"replaced":                {debug.BuildInfo{Main: debug.Module{Path: "example.com/site"}, Deps: []*debug.Module{{Path: modulePath, Version: "v0.2.1", Replace: &debug.Module{Path: modulePath, Version: "v0.2.2"}}}}, "v0.2.2"},
+		"replaced by a directory": {debug.BuildInfo{Main: debug.Module{Path: "example.com/site"}, Deps: []*debug.Module{{Path: modulePath, Version: "v0.2.1", Replace: &debug.Module{Path: "../forts-replay"}}}, Settings: vcs}, "devel"},
+		"absent":                  {debug.BuildInfo{Main: debug.Module{Path: "example.com/site"}, Deps: []*debug.Module{other}, Settings: vcs}, "devel"},
+	} {
+		if got := moduleVersion(&c.bi); got != c.want {
+			t.Errorf("%s: %q, want %q", name, got, c.want)
 		}
 	}
 }
