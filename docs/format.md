@@ -68,7 +68,7 @@ In a ranked replay, the opponent's entry holds a generic localised word for "pla
 
 ### Teams
 
-A match has two sides. A team ID is the side plus 100 times the fort: 101, 201, 301 and 401 on side 1, 102 to 402 on side 2. Some lobby games use plain 1 and 2 (header u32@17 is 0), and single-player games use 1 for the player and 102 for the AI. The side is the team ID modulo 100. A player who loses their fort can play on in an ally's, on the same side; the header keeps the team they started with.
+A match has two sides. A team ID is the side plus 100 times the fort: 101, 201, 301 and 401 on side 1, 102 to 402 on side 2. Some lobby games use plain 1 and 2 (header u32@17 is 0), and single-player games use 1 for the player and 102 for the AI. The side is the team ID modulo 100. A player who loses their fort can play on in an ally's, on the same side. The header keeps the team they started with; their commands carry the team they play in at the time (see "Commands").
 
 ### Commander names
 
@@ -112,11 +112,12 @@ Payloads start with the type byte, then 16 bytes that are zero in single-player 
 | 0xc0 | 164 | Sync, see below |
 | 0x92 | 53 | Hover, see "Input state" |
 | 0x93 | 63 | Unknown state, see "Input state" |
+| 0x94 | 37 | Aim point, see "Input state" |
 | 0x95 | 37 | Pointer, see "Input state" |
 | 0x97 | 36 | APM, see "Input state" |
-| 0xc5 to 0xda | 28 to 74 | Commands, see "Commands" |
+| 0xc5 to 0xe0 | 28 to 74 | Commands, see "Commands" |
 | 0xe6 | 344 | Script call, see "Script calls" |
-| 0x8d | 135 | Not decoded; byte 17 repeats the type. Some hold the SteamID64 of a player in the header's player table at bytes 75 and 83, the same ID twice, or at byte 83 only. |
+| 0x8d, 0x8f, 0x91, 0x9a, 0xb8, 0xba, 0xc8, 0xc9, 0xe3 | 28 to 284 | Not decoded, see "Records not decoded" |
 | 0xbb | 85 | Ranked result, see "Ranked result" |
 | 0xe2 | about 2.4 MB | Screenshot, see "Screenshots" |
 
@@ -153,7 +154,7 @@ Input records start like a tick:
 | 17 | u8 | The type, except in 0x92 and 0x95: there the type minus 1 for player 1 in single-player games and in some multiplayer replays, and the type otherwise |
 | 18 | u16 | 0 |
 | 20 | u32 | Player ID from the header's player table (1 in single-player games); 0 in records the game writes |
-| 24 | u32 | Type-specific; 1 unless a table below says otherwise |
+| 24 | u32 | Type-specific; in most commands the sender's current team (see "Commands") |
 | 28 | | Body |
 
 Each type has a fixed length. The parser rejects a record of another length, a float that is not finite and a flag byte other than 0 or 1.
@@ -182,7 +183,9 @@ Types 0x92, 0x93, 0x95 and 0x97 carry state and are written only when it changes
 | 46 | u8 | Candidate cursor feedback: 1 or 2 while a strut is dragged, 3 the selected weapon's target is valid, 6 on a device just placed, 12 on a reloading weapon, 13 the selected weapon is reloading, 14 its line of fire is blocked |
 | 47 | 6 bytes | 0 |
 
-**0x93 (63 bytes).** Zero except u8@44 = 1. The snapshot holds the same bytes in every sample, so this state exists but never changed. Meaning unknown.
+**0x94, aim point (37 bytes).** Candidate. Byte 17 is the type. u32@24 repeats the player ID, f32@28 x and f32@32 y are a point in world coordinates, and u8@36 is 0. Written while a swarm missile launcher is selected: when the pointer moves (a moment later) and when the selection is cancelled. Selecting a missile launcher or a sniper writes none.
+
+**0x93 (63 bytes).** In single-player games zero except u8@44 = 1, and the snapshot holds the same bytes, so it never changes there. In multiplayer games it changes often, up to about 4,500 records a game: u32@28, the four u32 from offset 44 and u8@60 vary, u32@24 repeats the player ID, and u32@32 to u32@40 stay 0. Meaning unknown.
 
 **0x97, APM (36 bytes).** f32@28 is the game's actions-per-minute figure: ten times the actions in the last 150 frames, sampled every 12 frames. Releasing a mouse button in the world counts as an action (a drag counts once), and so do camera keys. Clicks on the HUD and on context-menu items do not. u32@32 is 0. After a restart the figure starts high and decays, since actions from before the restart still count.
 
@@ -190,28 +193,39 @@ Types 0x92, 0x93, 0x95 and 0x97 carry state and are written only when it changes
 
 A command is written in the step the player issues it. Candidate: it takes effect in that step, so a command written after sync N is in effect in the game state of frame N + 2. A record is what the player asked for; the game may still refuse it, for example for lack of resources.
 
+In the u32@24 column, Team is the sender's current team (see "Teams"), 1 in single-player games.
+
 | Type | Bytes | Command | u32@24 | Body |
 |---|---|---|---|---|
-| 0xd2 | 67 | Place a device or weapon, or move one (Phantom commander) | 1 | f32@28 position t from node A to node B (on the ground: the orientation angle); u32@32 type ID; u32@36 node A; u32@40 node B (both 0 on the ground); f32@44 x; f32@48 y; u8@52 1; f32@53 initial aim angle (mortars 1.1345, howitzer 0.4363, otherwise 0); u16@57 1; i32@59 -1 for a new device, else the instance being moved; u32@63 0 |
+| 0xd2 | 67 | Place a device or weapon, or move one (Phantom commander) | Team | f32@28 position t from node A to node B (on the ground: the orientation angle); u32@32 type ID; u32@36 node A; u32@40 node B (both 0 on the ground); f32@44 x; f32@48 y; u8@52 1; f32@53 initial aim angle (mortars 1.1345, howitzer 0.4363, otherwise 0); u16@57 1; i32@59 -1 for a new device, else the instance being moved; u32@63 0 |
 | 0xcb | 74 | Strut from an existing node to a new one | The player's build serial: 1, 2, 3 in each match. The new node keeps it. | u32@28 1; f32@32, f32@36 the new node; f32@40, f32@44 the new node minus the source node; u32@48 source node; u32@52 material; f32@56 -1; u32@60 0x1000; u8@64 1 in the first record of the pair, 0 in the second; u8@65 0; u8@66 1 when the new node is fixed to terrain; bytes 67 to 73 `00 01 00 00 00 00 01` |
-| 0xcd | 50 | Strut between two existing nodes, or a new material for an existing strut | 1 | u32@28 node A; u32@32 node B; 8 zero bytes; u32@44 material; u8@48 1 in the first record of the pair, 0 in the second; u8@49 0 |
-| 0xce | 41 | Delete a strut. It deconstructs over about 76 frames. | 1 | u32@28 node A; u32@32 node B; u8@36 0; f32@37 -1 |
-| 0xcc | 33 | Delete a node: its struts deconstruct. Candidate: a second 0xcc on the node cancels this, and they rebuild. | 1 | u32@28 node; u8@32 0 |
-| 0xd6 | 34 | Scrap a device | 1 | u32@28 device; u16@32 0 |
-| 0xd5 | 36 | Upgrade a device, or downgrade it (Overdrive commander). Both write the same record. | 1 | u32@28 device; u32@32 0 |
-| 0xd0 | 32 | Repair at the hovered node | 1 | u32@28 node |
-| 0xd1 | 44 | Open or close a door | Candidate: 1 opening, 3 closing | u32@28 node A; u32@32 node B; u32@36 11; u32@40 0 |
-| 0xca | 51 | Fire a weapon | 1 | u32@28 device; u8@32 1; f32@33 aim angle in radians, 0 to 2 pi; f32@37 power; 10 zero bytes, except u8@49 = 1 for an immediate fire, whose power is 0.5 |
+| 0xcd | 50 | Strut between two existing nodes, or a new material for an existing strut | Team | u32@28 node A; u32@32 node B; 8 zero bytes; u32@44 material; u8@48 1 in the first record of the pair, 0 in the second; u8@49 0 |
+| 0xce | 41 | Delete a strut. It deconstructs over about 76 frames. | Team | u32@28 node A; u32@32 node B; u8@36 0; f32@37 -1 |
+| 0xcc | 33 | Delete a node: its struts deconstruct. Candidate: a second 0xcc on the node cancels this, and they rebuild. | Team | u32@28 node; u8@32 0 |
+| 0xd6 | 34 | Scrap a device | Team | u32@28 device; u16@32 0 |
+| 0xd5 | 36 | Upgrade a device, or downgrade it (Overdrive commander). Both write the same record. | Team | u32@28 device; u32@32 0 |
+| 0xd0 | 32 | Repair at the hovered node | Team | u32@28 node |
+| 0xcf | 36 | Repair a strut with the wrench | Team | u32@28 node A; u32@32 node B |
+| 0xd4 | 32 | Repair a device from its menu | Team | u32@28 device |
+| 0xe0 | 44 | Area repair: one record per click, several per drag. Over undamaged structure nothing is recorded. | Team | f32@28 x; f32@32 y; u32@36 0; f32@40 radius, 200 in every sample |
+| 0xd1 | 44 | Open or close a door or shield strut | 1 opening, 3 closing | u32@28 node A; u32@32 node B; u32@36 source: 11 the player, from the strut's menu; 3 and 4 the game opening and closing a weapon's doors, also 1 and 5; 6 and 8 unknown; u32@40 that weapon, 0 for sources 6, 8 and 11 |
+| 0xdb | 52 | Fire a weapon at a world point, such as swarm missiles at the point a sniper marks. A group fire writes one record per weapon. | f32: x | f32@28 y; f32@32 angle in radians; u32@36 0 (1.0 as f32 in 2 of 3,327 samples); u32@40 device; u32@44 the spotter device, 0 for none; i32@48 -1 |
+| 0xca | 51 | Fire a weapon | Sender | u32@28 device; u8@32 1; f32@33 aim angle in radians, 0 to 2 pi; f32@37 power; 10 zero bytes, except u8@49 = 1 for an immediate fire, whose power is 0.5 |
 | 0xc7 | 33 | Fire while the player's own fort blocks the line of fire | Device | u8@28 1; f32@29 aim angle. The heavy mortar writes it twice in one step. |
-| 0xc5 | 45 | Start an immediate fire: a double click on a weapon, or the fire key with it selected. A 0xca with u8@49 = 1, or a 0xc7, follows 2 frames later. | Device | u8@28 1; f32@29 unknown; f32@33 unknown, 5000.05 for machine guns and 2850 for a mortar; 8 zero bytes |
-| 0xc6 | 28 | End of an immediate fire, 40 frames after its 0xc5 | Device | none |
-| 0xda | 29 | Activate the commander ability | 1 | u8@28 1 |
+| 0xc5 | 45 | Start an immediate fire: a double click on a weapon, or the fire key with it selected. In single-player games a 0xca with u8@49 = 1, or a 0xc7, follows 2 frames later; for a swarm missile launcher a 0xdb follows 40 frames later. | Device | u8@28 1; f32@29 unknown; f32@33 unknown, 5000.05 for machine guns and 2850 for a mortar; 8 zero bytes |
+| 0xc6 | 28 | End of an immediate fire: 40 frames after its 0xc5 in single-player games, 38 to 86 in multiplayer ones, 192 for a swarm missile launcher | Device | none |
+| 0xda | 29 | Activate the commander ability | Team | u8@28 1 |
+| 0xd7 | 40 | Link a portal strut to another, or unlink it | Node A of the portal strut | u32@28 its node B; u32@32 and u32@36 the nodes of the strut it links to, 0 and 0 to unlink. Candidate: its own nodes turn on passthrough (one sample). |
+| 0xd8 | 32 | Reverse a portal | Node A of the portal strut | u32@28 its node B |
+| 0xdc | 32 | Choose a weapon's ammunition | i32: the ammunition slot from 0; candidate: -1 toggles the ammunition queue | u32@28 device |
+
+The parser leaves 0xd1 records that name a weapon out of timelines and counts: the game writes them, not the player.
 
 0xcb and 0xcd come in pairs, in the same step or 2 frames apart, identical except for the flag byte. The strut is built by the second record.
 
 Node IDs and device instances are the snapshot's own. A new node takes the next free node ID, but projectiles and debris take node IDs too, so the records alone do not tell a new node's ID. An upgrade replaces the device with a new instance.
 
-Not recorded: camera moves, pause (paused time has no frames), weapon facing, aim and power keys, laser sights, the weapon door key, and clicks the game ignores (on a reloading weapon, outside a weapon's arc, on a device under construction, on a locked technology slot, on a commander dial that is not full). A skirmish has no surrender, and quitting writes no end record.
+Not recorded: camera moves, pause (paused time has no frames), weapon facing, aim and power keys, laser sights, the weapon door key and the door item in a weapon's menu, area repair over undamaged structure, and clicks the game ignores (on a reloading weapon, outside a weapon's arc, on a device under construction, on a locked technology slot, on a commander dial that is not full). A skirmish has no surrender, and quitting writes no end record.
 
 ### IDs
 
@@ -222,11 +236,38 @@ Not recorded: camera moves, pause (paused time has no frames), weapon facing, ai
 
 | Offset | Type | Meaning |
 |---|---|---|
-| 20 | u32 | 0 |
-| 24 | char[128] | Function name, NUL-padded |
-| 152 | char[192] | Arguments as text, NUL-padded |
+| 20 | u32 | 0 for calls the game makes; the player ID for calls a player's action causes |
+| 24 | char[128] | Function name, NUL-terminated |
+| 152 | char[192] | Arguments as text, NUL-terminated |
 
-Both samples have one call, at frame 80: `OnStreamComplete` with `1, true`. Probably game-generated rather than player input.
+Both fields hold printable ASCII up to their NUL; the parser reports a record that breaks this as invalid. The bytes after a NUL are usually zero but can hold leftovers. Bytes 1 to 16 are zero when the sender is 0.
+
+Functions seen in v1.38.2:
+
+| Function | Sender | Arguments |
+|---|---|---|
+| `OnStreamComplete` | game | a number and `true`; `1, true` at frame 80 |
+| `OnDeviceSelected` | game | the selected device's name in quotes, such as `"reactor"` |
+| `OnBuildError` | game | a number |
+| `FireWeapon` | player | a number, a `Vec` world position and two numbers |
+| `OverrideAntiAirOfWeapon` | player | two numbers, then a number or `nil` |
+
+## Records not decoded
+
+These types stay raw (`msg.Raw`). Counts are from 103 v1.38.2 replays: 38 multiplayer games and 65 single-player probes.
+
+| Type | Bytes | Where | What is known |
+|---|---|---|---|
+| 0x8d | 135 | 150 records in 23 games | Byte 17 repeats the type. Some hold the SteamID64 of a player in the header's player table at bytes 75 and 83, the same ID twice, or at byte 83 only. |
+| 0x8f | 32 | 18 records in 5 lobby games | Sent by players |
+| 0x91 | 53 | Almost only in ranked games, up to about 700 a game | Sent by players |
+| 0x93 | 63 | 68 of the 103 games | See "Input state" |
+| 0x9a | 42 to 284 | 250 records in 16 lobby games | Chat: the sender, then UTF-16 text. Almost a third comes from the game itself (sender 0, 284 bytes). |
+| 0xb8 | 29 | At most about one per game, near the end, in 21 of the 38 multiplayer games | Sent by players |
+| 0xba | 28 | Once | u32@24 2 |
+| 0xc8 | 28 | 5 records in 3 games | u32@24 a device. Candidate: with 0xc9, the start and end of an action on one weapon. |
+| 0xc9 | 33 | 4 records in 2 games | u32@24 a device, f32@28, u8@32. See 0xc8. |
+| 0xe3 | 36 | 10 records in 3 games | Sender 0 |
 
 ## Ranked result (type 0xbb)
 
