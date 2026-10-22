@@ -27,7 +27,7 @@
     "i32": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647},
     "frame": {"type": "integer", "minimum": -1, "description": "Frame of the step the record was written in; -1 before the first."},
     "side": {"type": "integer", "minimum": 0, "maximum": 99, "description": "Team ID modulo 100: 1 or 2, 0 for a spectator."},
-    "kind": {"enum": ["place", "strut", "link", "delete_link", "delete_node", "scrap", "upgrade", "repair", "door", "fire", "fire_blocked", "ability"]},
+    "kind": {"enum": ["place", "strut", "link", "delete_link", "delete_node", "scrap", "upgrade", "repair", "door", "fire", "fire_blocked", "ability", "repair_link", "repair_device", "repair_area", "portal_link", "portal_reverse", "fire_at", "ammo"]},
     "player": {
       "type": "object",
       "required": ["id", "slot", "team", "side"],
@@ -85,7 +85,14 @@
         {"if": {"properties": {"kind": {"const": "door"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/door"}}}},
         {"if": {"properties": {"kind": {"const": "fire"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/fire"}}}},
         {"if": {"properties": {"kind": {"const": "fire_blocked"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/fire_blocked"}}}},
-        {"if": {"properties": {"kind": {"const": "ability"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/ability"}}}}
+        {"if": {"properties": {"kind": {"const": "ability"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/ability"}}}},
+        {"if": {"properties": {"kind": {"const": "repair_link"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/repair_link"}}}},
+        {"if": {"properties": {"kind": {"const": "repair_device"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/repair_device"}}}},
+        {"if": {"properties": {"kind": {"const": "repair_area"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/repair_area"}}}},
+        {"if": {"properties": {"kind": {"const": "portal_link"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/portal_link"}}}},
+        {"if": {"properties": {"kind": {"const": "portal_reverse"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/portal_reverse"}}}},
+        {"if": {"properties": {"kind": {"const": "fire_at"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/fire_at"}}}},
+        {"if": {"properties": {"kind": {"const": "ammo"}}}, "then": {"properties": {"fields": {"$ref": "#/$defs/ammo"}}}}
       ]
     },
     "place": {
@@ -156,6 +163,53 @@
       "type": "object",
       "required": ["player"],
       "properties": {"player": {"$ref": "#/$defs/u32"}}
+    },
+    "repair_link": {
+      "type": "object",
+      "required": ["player", "team", "node_a", "node_b"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"},
+        "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"}
+      }
+    },
+    "repair_device": {
+      "type": "object",
+      "required": ["player", "team", "device"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"}, "device": {"$ref": "#/$defs/u32"}}
+    },
+    "repair_area": {
+      "type": "object",
+      "required": ["player", "team", "x", "y", "radius"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "team": {"$ref": "#/$defs/i32"},
+        "x": {"type": "number"}, "y": {"type": "number"}, "radius": {"type": "number"}
+      }
+    },
+    "portal_link": {
+      "type": "object",
+      "required": ["player", "node_a", "node_b", "other_a", "other_b"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"},
+        "other_a": {"$ref": "#/$defs/u32"}, "other_b": {"$ref": "#/$defs/u32"}
+      }
+    },
+    "portal_reverse": {
+      "type": "object",
+      "required": ["player", "node_a", "node_b"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "node_a": {"$ref": "#/$defs/u32"}, "node_b": {"$ref": "#/$defs/u32"}}
+    },
+    "fire_at": {
+      "type": "object",
+      "required": ["player", "x", "y", "angle", "device", "spotter"],
+      "properties": {
+        "player": {"$ref": "#/$defs/u32"}, "x": {"type": "number"}, "y": {"type": "number"}, "angle": {"type": "number"},
+        "device": {"$ref": "#/$defs/u32"}, "spotter": {"$ref": "#/$defs/u32"}
+      }
+    },
+    "ammo": {
+      "type": "object",
+      "required": ["player", "ammo", "device"],
+      "properties": {"player": {"$ref": "#/$defs/u32"}, "ammo": {"$ref": "#/$defs/i32"}, "device": {"$ref": "#/$defs/u32"}}
     }
   }
 }

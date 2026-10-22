@@ -2,8 +2,9 @@
 
 package msg
 
-// KindName names a typed record type in output: input state, commands, the
-// ranked result and screenshots. It returns "" for other types.
+// KindName names a typed record type in output: input state, commands,
+// script calls, the ranked result and screenshots. It returns "" for other
+// types.
 func KindName(t byte) string {
 	switch t {
 	case TypeHover:
@@ -12,6 +13,8 @@ func KindName(t byte) string {
 		return "pointer"
 	case TypeAPM:
 		return "apm"
+	case TypeAim:
+		return "aim"
 	case TypePlace:
 		return "place"
 	case TypeStrut:
@@ -40,6 +43,22 @@ func KindName(t byte) string {
 		return "fire_end"
 	case TypeAbility:
 		return "ability"
+	case TypeRepairLink:
+		return "repair_link"
+	case TypeRepairDevice:
+		return "repair_device"
+	case TypeRepairArea:
+		return "repair_area"
+	case TypePortalLink:
+		return "portal_link"
+	case TypePortalReverse:
+		return "portal_reverse"
+	case TypeFireAt:
+		return "fire_at"
+	case TypeAmmo:
+		return "ammo"
+	case TypeScriptCall:
+		return "script"
 	case TypeResult:
 		return "result"
 	case TypeScreenshot:

@@ -18,10 +18,20 @@ const (
 	TypeUpgrade     byte = 0xd5
 	TypeScrap       byte = 0xd6
 	TypeAbility     byte = 0xda
+
+	TypeRepairLink    byte = 0xcf
+	TypeRepairDevice  byte = 0xd4
+	TypePortalLink    byte = 0xd7
+	TypePortalReverse byte = 0xd8
+	TypeFireAt        byte = 0xdb
+	TypeAmmo          byte = 0xdc
+	TypeRepairArea    byte = 0xe0
 )
 
 // Command is a player action. Node IDs and device instances are those of the
 // snapshots. A command is what the player asked for; the game may refuse it.
+// A Team field is the sender's current team: a player who lost their fort
+// plays on in an ally's.
 type Command interface {
 	Message
 	Sender() uint32
@@ -210,6 +220,101 @@ type Ability struct {
 func (*Ability) MsgType() byte { return TypeAbility }
 func (*Ability) command()      {}
 
+// RepairLink repairs a strut with the wrench.
+type RepairLink struct {
+	Input
+
+	Team  int32  `json:"team"`
+	NodeA uint32 `json:"node_a"`
+	NodeB uint32 `json:"node_b"`
+}
+
+// MsgType returns TypeRepairLink.
+func (*RepairLink) MsgType() byte { return TypeRepairLink }
+func (*RepairLink) command()      {}
+
+// RepairDevice repairs a device from its context menu.
+type RepairDevice struct {
+	Input
+
+	Team   int32  `json:"team"`
+	Device uint32 `json:"device"`
+}
+
+// MsgType returns TypeRepairDevice.
+func (*RepairDevice) MsgType() byte { return TypeRepairDevice }
+func (*RepairDevice) command()      {}
+
+// RepairArea repairs the damaged structure around a point: one record per
+// click, several per drag, none over undamaged structure.
+type RepairArea struct {
+	Input
+
+	Team   int32   `json:"team"`
+	X      float32 `json:"x"` // world position
+	Y      float32 `json:"y"`
+	Radius float32 `json:"radius"` // 200 in every sample
+}
+
+// MsgType returns TypeRepairArea.
+func (*RepairArea) MsgType() byte { return TypeRepairArea }
+func (*RepairArea) command()      {}
+
+// PortalLink links a portal strut to another one. Candidate: a link to its
+// own nodes turns on passthrough.
+type PortalLink struct {
+	Input
+
+	NodeA  uint32 `json:"node_a"` // the portal strut
+	NodeB  uint32 `json:"node_b"`
+	OtherA uint32 `json:"other_a"` // the strut it links to, 0 and 0 to unlink
+	OtherB uint32 `json:"other_b"`
+}
+
+// MsgType returns TypePortalLink.
+func (*PortalLink) MsgType() byte { return TypePortalLink }
+func (*PortalLink) command()      {}
+
+// PortalReverse reverses a portal strut.
+type PortalReverse struct {
+	Input
+
+	NodeA uint32 `json:"node_a"`
+	NodeB uint32 `json:"node_b"`
+}
+
+// MsgType returns TypePortalReverse.
+func (*PortalReverse) MsgType() byte { return TypePortalReverse }
+func (*PortalReverse) command()      {}
+
+// FireAt fires a weapon at a world point, such as a swarm launcher at a
+// spotter's mark. A group fire writes one per weapon.
+type FireAt struct {
+	Input
+
+	X       float32 `json:"x"`
+	Y       float32 `json:"y"`
+	Angle   float32 `json:"angle"` // radians
+	Device  uint32  `json:"device"`
+	Spotter uint32  `json:"spotter"` // the device that marked the point, 0 for none
+}
+
+// MsgType returns TypeFireAt.
+func (*FireAt) MsgType() byte { return TypeFireAt }
+func (*FireAt) command()      {}
+
+// Ammo selects a weapon's ammunition.
+type Ammo struct {
+	Input
+
+	Ammo   int32  `json:"ammo"` // slot from 0; candidate: -1 toggles the ammo queue
+	Device uint32 `json:"device"`
+}
+
+// MsgType returns TypeAmmo.
+func (*Ammo) MsgType() byte { return TypeAmmo }
+func (*Ammo) command()      {}
+
 // registerCommands adds the command decoders for v.
 func registerCommands(r *Registry, v Versions) {
 	r.Register(TypeFireStart, v, inputDecoder(45, TypeFireStart, func(in Input, b *body) Message {
@@ -259,5 +364,28 @@ func registerCommands(r *Registry, v Versions) {
 	}))
 	r.Register(TypeAbility, v, inputDecoder(29, TypeAbility, func(in Input, _ *body) Message {
 		return &Ability{Input: in}
+	}))
+	r.Register(TypeRepairLink, v, inputDecoder(36, TypeRepairLink, func(in Input, b *body) Message {
+		return &RepairLink{Input: in, Team: b.i32(24), NodeA: b.u32(28), NodeB: b.u32(32)}
+	}))
+	r.Register(TypeRepairDevice, v, inputDecoder(32, TypeRepairDevice, func(in Input, b *body) Message {
+		return &RepairDevice{Input: in, Team: b.i32(24), Device: b.u32(28)}
+	}))
+	// u32@36 (0 in every sample) is not decoded.
+	r.Register(TypeRepairArea, v, inputDecoder(44, TypeRepairArea, func(in Input, b *body) Message {
+		return &RepairArea{Input: in, Team: b.i32(24), X: b.f32(28), Y: b.f32(32), Radius: b.f32(40)}
+	}))
+	r.Register(TypePortalLink, v, inputDecoder(40, TypePortalLink, func(in Input, b *body) Message {
+		return &PortalLink{Input: in, NodeA: b.u32(24), NodeB: b.u32(28), OtherA: b.u32(32), OtherB: b.u32(36)}
+	}))
+	r.Register(TypePortalReverse, v, inputDecoder(32, TypePortalReverse, func(in Input, b *body) Message {
+		return &PortalReverse{Input: in, NodeA: b.u32(24), NodeB: b.u32(28)}
+	}))
+	// u32@36 and i32@48 (-1 in every sample) are not decoded.
+	r.Register(TypeFireAt, v, inputDecoder(52, TypeFireAt, func(in Input, b *body) Message {
+		return &FireAt{Input: in, X: b.f32(24), Y: b.f32(28), Angle: b.f32(32), Device: b.u32(40), Spotter: b.u32(44)}
+	}))
+	r.Register(TypeAmmo, v, inputDecoder(32, TypeAmmo, func(in Input, b *body) Message {
+		return &Ammo{Input: in, Ammo: b.i32(24), Device: b.u32(28)}
 	}))
 }

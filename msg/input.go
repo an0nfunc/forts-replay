@@ -11,6 +11,7 @@ import (
 // Input state record types. The game writes each one when its body changes.
 const (
 	TypeHover   byte = 0x92
+	TypeAim     byte = 0x94
 	TypePointer byte = 0x95
 	TypeAPM     byte = 0x97
 )
@@ -62,6 +63,18 @@ type APM struct {
 
 // MsgType returns TypeAPM.
 func (*APM) MsgType() byte { return TypeAPM }
+
+// Aim is written as the pointer moves while a swarm launcher is selected,
+// and on cancel. Candidate: the selected weapon's aim point.
+type Aim struct {
+	Input
+
+	X float32 `json:"x"`
+	Y float32 `json:"y"`
+}
+
+// MsgType returns TypeAim.
+func (*Aim) MsgType() byte { return TypeAim }
 
 // body reads the fields of a record whose length is checked. It keeps the
 // first error.
@@ -137,5 +150,9 @@ func registerInputs(r *Registry, v Versions) {
 	}))
 	r.Register(TypeAPM, v, inputDecoder(36, TypeAPM, func(in Input, b *body) Message {
 		return &APM{Input: in, Rate: b.f32(28)}
+	}))
+	// u32@24 repeats the player.
+	r.Register(TypeAim, v, inputDecoder(37, TypeAim, func(in Input, b *body) Message {
+		return &Aim{Input: in, X: b.f32(28), Y: b.f32(32)}
 	}))
 }
