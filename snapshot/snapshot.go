@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package snapshot reads the Lua sections of a state snapshot (message
-// 0xe1). Package state decodes the binary data around them.
+// 0xe1, 0xe5 in header version 1390). Package state decodes the binary data
+// around them.
 package snapshot
 
 import (

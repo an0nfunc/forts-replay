@@ -11,7 +11,7 @@ Dependencies point downward only:
 - `stream`: records inside one decompressed block
 - `msg`: typed messages through a registry keyed by message type and game version; frame tracking
 - `lua`: parser for the Lua table text in snapshots (parses, never evaluates)
-- `snapshot`: Lua sections of state snapshots (type 0xe1)
+- `snapshot`: Lua sections of state snapshots (type 0xe1, 0xe5 in header version 1390)
 - `state`: the binary data of state snapshots for header versions 1383 and 1390 (resources, damage, player slots, nodes, devices, struts); imports nothing from this module
 - `match`: the match summary (`Build`): players, commanders, result, per-player command timelines, action counts, build orders, and the state series, losses, builds and device types from snapshots
 - `cmd/fwr`: the CLI
