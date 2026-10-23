@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/an0nfunc/forts-replay/compare/v0.3.0...v0.3.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **fwr:** show SteamIDs in dump and hex as info does ([c6e4c44](https://github.com/an0nfunc/forts-replay/commit/c6e4c449c0988046e010185053bad6378942ee9f))
+* **match:** end the summary at the first snapshot naming the winner ([7614c1e](https://github.com/an0nfunc/forts-replay/commit/7614c1e9a89bf27719c1956ba8bca1c61188de1f))
+
 ## [0.3.0](https://github.com/an0nfunc/forts-replay/compare/v0.2.0...v0.3.0) (2026-10-23)
 
 
