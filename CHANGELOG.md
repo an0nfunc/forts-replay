@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/an0nfunc/forts-replay/compare/v0.2.0...v0.3.0) (2026-10-23)
+
+
+### Features
+
+* decode game v1.39.0 replays (header version 1390) ([e3a7e60](https://github.com/an0nfunc/forts-replay/commit/e3a7e6067b377156bb51e73e6c9faf77a3139283))
+
 ## [0.2.0](https://github.com/an0nfunc/forts-replay/compare/v0.1.0...v0.2.0) (2026-10-22)
 
 
