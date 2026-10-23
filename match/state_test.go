@@ -16,32 +16,37 @@ import (
 )
 
 // stateReplay returns a synthetic replay of version v from header setup s:
-// snapshot i at frame 10(i+1), followed by the payloads in cmds[i].
+// snapshot i at frame 10(i+1), followed by the payloads in cmds[i], given
+// as version 1383 writes them.
 func stateReplay(v uint32, s fwrtest.Setup, snaps []fwrtest.State, cmds ...[][]byte) []byte {
-	return snapReplay(v, s, payloads(snaps), cmds...)
+	return snapReplay(v, s, payloads(v, snaps), cmds...)
 }
 
-func payloads(snaps []fwrtest.State) [][]byte {
+// payloads lays out each snapshot for header version v.
+func payloads(v uint32, snaps []fwrtest.State) [][]byte {
 	out := make([][]byte, len(snaps))
 	for i, st := range snaps {
+		st.Version = v
 		out[i] = st.Payload()
 	}
 	return out
 }
 
-// snapReplay is stateReplay with the snapshot payloads given.
+// snapReplay is stateReplay with the snapshot payloads given, as version v
+// writes them.
 func snapReplay(v uint32, s fwrtest.Setup, snaps [][]byte, cmds ...[][]byte) []byte {
+	retype, extra := inVersion(v, s)
 	var recs [][]byte
 	for i, p := range snaps {
 		f := uint32(10 * (i + 1))
-		recs = append(recs, fwrtest.Record(fwrtest.Tick(f+2), i == 0), fwrtest.Record(fwrtest.Sync(f), false), fwrtest.Record(p, false))
+		recs = append(recs, fwrtest.Record(retype(fwrtest.Tick(f+2)), i == 0), fwrtest.Record(retype(fwrtest.Sync(f)), false), fwrtest.Record(p, false))
 		if i < len(cmds) {
 			for _, c := range cmds[i] {
-				recs = append(recs, fwrtest.Record(c, false))
+				recs = append(recs, fwrtest.Record(retype(c), false))
 			}
 		}
 	}
-	return fwrtest.File(fwrtest.Header{Version: v, Frames: uint32(10 * len(snaps)), Extra: s.Extra()}, bytes.Join(recs, nil))
+	return fwrtest.File(fwrtest.Header{Version: v, Frames: uint32(10 * len(snaps)), Extra: extra}, bytes.Join(recs, nil))
 }
 
 // solo is a header setup with one player on team 101.
@@ -503,7 +508,7 @@ func TestBuildStateErrors(t *testing.T) {
 		snap([]int32{101}, two, nil, nil), snap([]int32{101}, two, nil, nil), snap([]int32{101}, two, nil, nil),
 		snap([]int32{101}, two, nil, nil), snap([]int32{101}, nil, nil, nil),
 	}
-	snaps := payloads(good)
+	snaps := payloads(1383, good)
 	noNodes := good[2]
 	noNodes.Nodes = []fwrtest.Node{}
 	snaps[2] = noNodes.Payload()

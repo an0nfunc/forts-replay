@@ -20,31 +20,37 @@ func FuzzTimeline(f *testing.F) {
 			f.Add(b)
 		}
 	}
+	_, blocks := fixture.Read1390(f, "..", "probe-delete.fwr")
+	for _, b := range blocks {
+		f.Add(b)
+	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		tl := NewTimeline(Limits{MaxPlayers: 2, MaxCommands: 8})
-		d := msg.NewDecoder(stream.New(data), msg.DefaultRegistry(), 1383, msg.Options{})
-		for d.Next() {
-			tl.Add(d.Frame(), d.Message())
-		}
-		ps := tl.Players()
-		kept := 0
-		for _, p := range ps {
-			kept += len(p.Commands)
-			counted := 0
-			for _, n := range p.Counts {
-				counted += n
+		for _, v := range []uint32{1383, 1390} {
+			tl := NewTimeline(Limits{MaxPlayers: 2, MaxCommands: 8})
+			d := msg.NewDecoder(stream.New(data), msg.DefaultRegistry(), v, msg.Options{})
+			for d.Next() {
+				tl.Add(d.Frame(), d.Message())
 			}
-			if counted < len(p.Commands) {
-				t.Fatalf("player %d: %d counted, %d kept", p.ID, counted, len(p.Commands))
-			}
-			for _, e := range p.Commands {
-				if e.Command.Sender() != p.ID {
-					t.Fatalf("player %d holds a command from %d", p.ID, e.Command.Sender())
+			ps := tl.Players()
+			kept := 0
+			for _, p := range ps {
+				kept += len(p.Commands)
+				counted := 0
+				for _, n := range p.Counts {
+					counted += n
+				}
+				if counted < len(p.Commands) {
+					t.Fatalf("%d: player %d: %d counted, %d kept", v, p.ID, counted, len(p.Commands))
+				}
+				for _, e := range p.Commands {
+					if e.Command.Sender() != p.ID {
+						t.Fatalf("%d: player %d holds a command from %d", v, p.ID, e.Command.Sender())
+					}
 				}
 			}
-		}
-		if len(ps) > 2 || kept > 8 {
-			t.Fatalf("%d players, %d commands kept", len(ps), kept)
+			if len(ps) > 2 || kept > 8 {
+				t.Fatalf("%d: %d players, %d commands kept", v, len(ps), kept)
+			}
 		}
 	})
 }
@@ -53,11 +59,15 @@ func FuzzBuild(f *testing.F) {
 	for _, name := range fixture.Names {
 		f.Add(fixtureFile(f, name))
 	}
+	f.Add(fixtureFile1390(f, "probe-delete.fwr"))
 	f.Add(game(duel(true), fwrtest.Result(0, 1, 101, testSteamID), won(1)))
-	f.Add(stateReplay(1383, solo(), []fwrtest.State{
-		snap([]int32{0, 1, 2, 101}, []fwrtest.Device{dev(1, 101, "reactor"), dev(2, 101, "gun")}, nil, nil),
-		snap([]int32{0, 1, 2, 101}, []fwrtest.Device{dev(1, 101, "reactor")}, nil, nil),
-	}, [][]byte{fwrtest.Scrap(1, 101, 1), fwrtest.DeleteLink(1, 101, 1, 2)}))
+	f.Add(gameIn(1390, duel(true), [][]byte{won(1)}, fwrtest.Result(0, 1, 101, testSteamID)))
+	for _, v := range []uint32{1383, 1390} {
+		f.Add(stateReplay(v, solo(), []fwrtest.State{
+			snap([]int32{0, 1, 2, 101}, []fwrtest.Device{dev(1, 101, "reactor"), dev(2, 101, "gun")}, nil, nil),
+			snap([]int32{0, 1, 2, 101}, []fwrtest.Device{dev(1, 101, "reactor")}, nil, nil),
+		}, [][]byte{fwrtest.Scrap(1, 101, 1), fwrtest.DeleteLink(1, 101, 1, 2)}))
+	}
 	f.Fuzz(func(t *testing.T, data []byte) {
 		opts := Options{
 			Container: container.Limits{MaxBlock: 1 << 20, MaxTotal: 4 << 20},

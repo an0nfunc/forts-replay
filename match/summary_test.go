@@ -67,11 +67,7 @@ func game(s fwrtest.Setup, end ...[]byte) []byte {
 // given as 1383 writes them, at the version's types, then the records of
 // raw as they are.
 func gameIn(v uint32, s fwrtest.Setup, end [][]byte, raw ...[]byte) []byte {
-	retype, extra := slices.Clone[[]byte], s.Extra()
-	if v == 1390 {
-		s.Date = "20261023_195552"
-		retype, extra = fwrtest.In1390, s.Extra1390()
-	}
+	retype, extra := inVersion(v, s)
 	recs := [][]byte{
 		fwrtest.Record(retype(luaState("data = { gameFrame = 1, }")), true),
 		fwrtest.Record(retype(fwrtest.Tick(4)), false), fwrtest.Record(retype(fwrtest.Sync(2)), false),
@@ -84,6 +80,16 @@ func gameIn(v uint32, s fwrtest.Setup, end [][]byte, raw ...[]byte) []byte {
 		recs = append(recs, fwrtest.Record(p, false))
 	}
 	return fwrtest.File(fwrtest.Header{Version: v, Frames: 4, Extra: extra}, bytes.Join(recs, nil))
+}
+
+// inVersion returns what turns a record as header version 1383 writes it
+// into one of version v, and the header bytes of setup s in version v.
+func inVersion(v uint32, s fwrtest.Setup) (func([]byte) []byte, []byte) {
+	if v == 1390 {
+		s.Date = "20261023_195552"
+		return fwrtest.In1390, s.Extra1390()
+	}
+	return slices.Clone[[]byte], s.Extra()
 }
 
 func duel(ranked bool) fwrtest.Setup {
