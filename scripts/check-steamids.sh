@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Fails when a text file holds an individual SteamID64, one whose upper 32
-# bits are 0x01100001, that scripts/steamids.allow does not list: as 17
-# decimal digits, as 0x011000..., or as little-endian bytes in hex, spaced or
-# not, ending in 01 00 10 01. Checks the given files, or else every tracked
-# file outside the corpus submodule.
+# Fails when a text file holds an individual SteamID64 (upper 32 bits
+# 0x01100001) that scripts/steamids.allow does not list. Matches 17 decimal
+# digits, 0x011000..., and little-endian bytes in hex, spaced or not, ending
+# in 01 00 10 01. Checks the given files, or every tracked file outside the
+# corpus submodule.
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)

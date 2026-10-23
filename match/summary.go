@@ -201,9 +201,9 @@ type builder struct {
 	snapAt   int64
 	snapWin  lua.Value
 	snapOK   bool // the parsed snapshot has the key
-	// ended is set by the first snapshot naming side 1 or 2 the winner: st
-	// sees nothing later, since the game goes on writing snapshots, in
-	// version 1390 up to one with every fort emptied.
+	// ended is set by the first snapshot naming side 1 or 2 the winner. st
+	// sees nothing after it: the game keeps writing snapshots, in version
+	// 1390 until one with every fort emptied.
 	ended bool
 }
 
