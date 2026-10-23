@@ -43,6 +43,8 @@ jobs:
           version: v2.15.0
       - name: no network
         run: "! go list -deps ./... | grep -E '^(net|crypto/tls|log/syslog|os/exec|plugin)($|/)'"
+      - name: no SteamIDs
+        run: scripts/check-steamids.sh
   vuln:
     runs-on: ubuntu-latest
     steps:
