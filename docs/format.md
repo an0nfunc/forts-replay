@@ -1,6 +1,6 @@
 # Forts replay format
 
-Status: what is known as of game v1.38.2. All integers are little-endian. "Candidate" marks a reading that is consistent with the samples but not confirmed.
+Status: what is known as of game v1.38.2 (header version 1383) and v1.39.0 (header version 1390). The layouts are those of 1383; a "Version 1390" note says where 1390 differs. All integers are little-endian. "Candidate" marks a reading that is consistent with the samples but not confirmed.
 
 ## File layout
 
@@ -10,7 +10,7 @@ A replay is a header followed by blocks up to the end of the file. There is no t
 
 | Offset | Type | Meaning |
 |---|---|---|
-| 0 | u32 | 1383 in replays from game v1.38.2. Candidate format version. The game's own version appears only in the default file name, `v1.38.2_<map>_<date>_<time>.fwr`. |
+| 0 | u32 | 1383 in replays from game v1.38.2, 1390 from v1.39.0. Candidate format version. The game's own version appears only in the default file name, `v1.38.2_<map>_<date>_<time>.fwr`, and from v1.39.0 on `Forts v1.39.0_<map>_<date>_<time>.fwr`. |
 | 4 | u8 | 0 |
 | 5 | u32 | Total physics frames. The simulation runs at 25 Hz. |
 | 9 | u32 | 2, also in games with one player or eight. Candidate side count. |
@@ -29,6 +29,17 @@ A replay is a header followed by blocks up to the end of the file. There is no t
 | | | The players, AI forts, images and teams, up to the first block (below) |
 
 A str8 is a u32 byte count followed by that many bytes, with no terminator; a str16 is the same with UTF-16LE text.
+
+**Version 1390** has 22 more bytes before the ranked flag:
+
+| Offset | Type | Meaning |
+|---|---|---|
+| 21 | 4 bytes | `00 00 00 00` in single-player games, `02 00 00 00` in a lobby game: the 1383 u8 and 3 more bytes, or one u32 |
+| 25 | str8 | 15 bytes, the date and time of the recording, `YYYYMMDD_HHMMSS`, as in the default file name |
+| 44 | u32 | Number of screenshot records |
+| 48 | 200 × u32 | Indices of the blocks holding them |
+
+Every later fixed offset is the 1383 one plus 0x16: the ranked flag at 0x350, the save-name at 0x351, the u8 at 0x391, the number array at 0x392, the commander names at 0x522 and the options at 0x586. Whether a ranked header still has 128 more bytes after the flag is not known; the parser assumes so. From the map files on, the layout is that of 1383.
 
 After the map files:
 
@@ -72,7 +83,7 @@ A match has two sides. A team ID is the side plus 100 times the fort: 101, 201, 
 
 ### Commander names
 
-The 100 bytes at 0x50c hold two 50-byte blocks: side 1's commander save-name, then side 2's, each NUL-terminated UTF-8, XOR-masked with a byte stream derived from the u32 array at 0x37c. An empty name means the side had no commander, as in sandbox games; a block with no NUL holds no name. Bytes past a NUL are save-time padding.
+The 100 bytes at 0x50c (0x522 in version 1390) hold two 50-byte blocks: side 1's commander save-name, then side 2's, each NUL-terminated UTF-8, XOR-masked with a byte stream derived from the u32 array at 0x37c (0x392). The mask is the same in both versions. An empty name means the side had no commander, as in sandbox games; a block with no NUL holds no name. Bytes past a NUL are save-time padding.
 
 The mask: seed = the u32 at index 73 of the array, XOR 0x67e36aed. For each byte, advance the state s = s × 1103515245 + 12345 (mod 2^32); the output is fifteen bits: when bit 31 of s is set, (s + 0xffff, mod 2^32) >> 16, else s >> 16, masked with 0x7fff. The output, 0 to 32767, narrows to the mask byte in 32-bit floats: out × (1/32767) computed as a double and narrowed to a float, times 255 plus 0.5, truncated to an integer.
 
@@ -121,6 +132,21 @@ Payloads start with the type byte, then 16 bytes that are zero in single-player 
 | 0xbb | 85 | Ranked result, see "Ranked result" |
 | 0xe2 | about 2.4 MB | Screenshot, see "Screenshots" |
 
+**Version 1390** moves record types: the input records and chat (0x92 to 0x9a) by 3, and every type from the tick (0xbe) to the script call (0xe6) by 4. Lengths, byte 17 and payload layouts stay. The new types overlap old ones, so a decoder picks the table by header version. This document names types by their 1383 IDs.
+
+| 1383 | 1390 | Records |
+|---|---|---|
+| 0x92 to 0x97 | 0x95 to 0x9a | Input state |
+| 0x9a | 0x9d | Chat |
+| 0xbe, 0xc0 | 0xc2, 0xc4 | Tick, sync |
+| 0xc5 to 0xe0 | 0xc9 to 0xe4 | Commands, 0xc8 and 0xc9 |
+| 0xe1 | 0xe5 | Snapshot |
+| 0xe2 | 0xe6 | Screenshot |
+| 0xe3 | 0xe7 | Not decoded |
+| 0xe6 | 0xea | Script call |
+
+No 1390 sample holds the 1383 types 0xc9, 0xcf, 0xd0, 0xdc or 0xe3 yet; the parser decodes 0xcf, 0xd0 and 0xdc at 0xd3, 0xd4 and 0xe0 by the same rule. 0xb8, 0xba and the ranked result 0xbb lie between the two ranges, and their 1390 types are not known. 0x8d keeps its type (candidate), and 0x8f to 0x91 hold other layouts (see "Records not decoded").
+
 ## Ticks and syncs (types 0xbe and 0xc0)
 
 The simulation advances in steps of two frames. Each step writes a tick, then a sync, then the step's other messages.
@@ -135,7 +161,7 @@ The simulation advances in steps of two frames. Each step writes a tick, then a 
 | 24 | u32 frame the step advances to | u32 frame |
 | 28 | | 17 × u64 |
 
-Of the sync's 17 values, slots 2, 3 and 13 are the same in every sync (1112, 2341, 292270), slot 15 is constant within a replay, slot 16 is 0, slots 5 to 12 look like hashes, and slots 0, 1, 4 and 14 vary between syncs. At the same frame, slots 8 to 10 match in both samples. Candidate state checksums, for desync detection.
+Of the sync's 17 values, slots 2, 3 and 13 are the same in every sync (1112, 2341, 292270), slot 15 is constant within a replay (a small number in version 1383, a full 64-bit value in 1390), slot 16 is 0, slots 5 to 12 look like hashes, and slots 0, 1, 4 and 14 vary between syncs. At the same frame, slots 8 to 10 match in both samples. Candidate state checksums, for desync detection.
 
 The first tick advances to frame 4 and the first sync is frame 2. Each later sync is 2 frames after the one before, and each tick advances to its sync's frame plus 2. The last sync is the header's frame count, or the count minus 1 when the count is odd, which happens in some multiplayer replays. The parser gives every message the frame of the latest sync before it; messages before the first sync have none. Candidate: a command takes effect in the step it is written in (see "Commands").
 
@@ -183,7 +209,7 @@ Types 0x92, 0x93, 0x95 and 0x97 carry state and are written only when it changes
 | 46 | u8 | Candidate cursor feedback: 1 or 2 while a strut is dragged, 3 the selected weapon's target is valid, 6 on a device just placed, 12 on a reloading weapon, 13 the selected weapon is reloading, 14 its line of fire is blocked |
 | 47 | 6 bytes | 0 |
 
-**0x94, aim point (37 bytes).** Candidate. Byte 17 is the type. u32@24 repeats the player ID, f32@28 x and f32@32 y are a point in world coordinates, and u8@36 is 0. Written while a swarm missile launcher is selected: when the pointer moves (a moment later) and when the selection is cancelled. Selecting a missile launcher or a sniper writes none.
+**0x94, aim point (37 bytes).** Candidate. Byte 17 is the type. u32@24 repeats the player ID, f32@28 x and f32@32 y are a point in world coordinates, and u8@36 is 0. Written while a swarm missile launcher is selected: when the pointer moves (a moment later) and when the selection is cancelled. Selecting a missile launcher or a sniper writes none. In version 1390 one record, written while a water cannon was selected, has u8@36 = 1.
 
 **0x93 (63 bytes).** In single-player games zero except u8@44 = 1, and the snapshot holds the same bytes, so it never changes there. In multiplayer games it changes often, up to about 4,500 records a game: u32@28, the four u32 from offset 44 and u8@60 vary, u32@24 repeats the player ID, and u32@32 to u32@40 stay 0. Meaning unknown.
 
@@ -211,8 +237,8 @@ In the u32@24 column, Team is the sender's current team (see "Teams"), 1 in sing
 | 0xd1 | 44 | Open or close a door or shield strut | 1 opening, 3 closing | u32@28 node A; u32@32 node B; u32@36 source: 11 the player, from the strut's menu; 3 and 4 the game opening and closing a weapon's doors, also 1 and 5; 6 and 8 unknown; u32@40 that weapon, 0 for sources 6, 8 and 11 |
 | 0xdb | 52 | Fire a weapon at a world point, such as swarm missiles at the point a sniper marks. A group fire writes one record per weapon. | f32: x | f32@28 y; f32@32 angle in radians; u32@36 0 (1.0 as f32 in 2 of 3,327 samples); u32@40 device; u32@44 the spotter device, 0 for none; i32@48 -1 |
 | 0xca | 51 | Fire a weapon | Sender | u32@28 device; u8@32 1; f32@33 aim angle in radians, 0 to 2 pi; f32@37 power; 10 zero bytes, except u8@49 = 1 for an immediate fire, whose power is 0.5 |
-| 0xc7 | 33 | Fire while the player's own fort blocks the line of fire | Device | u8@28 1; f32@29 aim angle. The heavy mortar writes it twice in one step. |
-| 0xc5 | 45 | Start an immediate fire: a double click on a weapon, or the fire key with it selected. In single-player games a 0xca with u8@49 = 1, or a 0xc7, follows 2 frames later; for a swarm missile launcher a 0xdb follows 40 frames later. | Device | u8@28 1; f32@29 unknown; f32@33 unknown, 5000.05 for machine guns and 2850 for a mortar; 8 zero bytes |
+| 0xc7 | 33 | Fire while the player's own fort blocks the line of fire | Device | u8@28 1, in lobby games 0 or 1; f32@29 aim angle. The heavy mortar writes it twice in one step. |
+| 0xc5 | 45 | Start an immediate fire: a double click on a weapon, or the fire key with it selected. In single-player games a 0xca with u8@49 = 1, or a 0xc7, follows 2 frames later; for a swarm missile launcher a 0xdb follows 40 frames later. | Device | u8@28 1, in lobby games 0 or 1; f32@29 unknown; f32@33 unknown, 5000.05 for machine guns and 2850 for a mortar; 8 zero bytes |
 | 0xc6 | 28 | End of an immediate fire: 40 frames after its 0xc5 in single-player games, 38 to 86 in multiplayer ones, 192 for a swarm missile launcher | Device | none |
 | 0xda | 29 | Activate the commander ability | Team | u8@28 1 |
 | 0xd7 | 40 | Link a portal strut to another, or unlink it | Node A of the portal strut | u32@28 its node B; u32@32 and u32@36 the nodes of the strut it links to, 0 and 0 to unlink. Candidate: its own nodes turn on passthrough (one sample). |
@@ -225,11 +251,11 @@ The parser leaves 0xd1 records that name a weapon out of timelines and counts: t
 
 Node IDs and device instances are the snapshot's own. A new node takes the next free node ID, but projectiles and debris take node IDs too, so the records alone do not tell a new node's ID. An upgrade replaces the device with a new instance.
 
-Not recorded: camera moves, pause (paused time has no frames), weapon facing, aim and power keys, laser sights, the weapon door key and the door item in a weapon's menu, area repair over undamaged structure, and clicks the game ignores (on a reloading weapon, outside a weapon's arc, on a device under construction, on a locked technology slot, on a commander dial that is not full). A skirmish has no surrender, and quitting writes no end record.
+Not recorded: camera moves, pause (paused time has no frames), weapon facing, aim and power keys, laser sights, the weapon door key and the door item in a weapon's menu, area repair over undamaged structure, and clicks the game ignores (on a reloading weapon, outside a weapon's arc, on a device under construction, on a locked technology slot, where v1.39.0 writes an `OnBuildError` script call, on a commander dial that is not full). A skirmish has no surrender, and quitting writes no end record.
 
 ### IDs
 
-- **Type IDs** (0xd2 u32@32, 0x92 u8@44) index the match's table of weapons followed by devices. The table depends on the loaded options, not on the commander: the battery is 37 in a sandbox game and 38 in a skirmish whose options add `rapidfire`. Ammunition placed like a device has IDs past the weapons and devices (52 and 53 in a sandbox game). Commands carry only the number; a snapshot's device table pairs each type ID with the device's save-name (see "World state").
+- **Type IDs** (0xd2 u32@32, 0x92 u8@44) index the match's table of weapons followed by devices. The table depends on the loaded options, not on the commander: the battery is 37 in a sandbox game and 38 in a skirmish whose options add `rapidfire`. Ammunition placed like a device has IDs past the weapons and devices (52 and 53 in a sandbox game). Commands carry only the number; a snapshot's device table pairs each type ID with the device's save-name (see "World state"). The table also changes between game versions: with the options `repair_station`, `weapon_pack`, `dlc1_portal_skirmish`, `dlc1_weapons_skirmish` and `dlc3`, v1.39.0 has `watercannon` at 4, and every later weapon and every device is one higher than in v1.38.2 (`fireball_cannon` 22, battery 38), while a v1.39.0 lobby game without `weapon_pack` has the v1.38.2 IDs.
 - **Materials** (0xcb u32@52, 0xcd u32@44, 0x92 u8@43), by their build bar names: 0 bracing (the wood strut), 1 backbracing, 3 armour, 4 door, 6 shield, 7 rope, 9 portal.
 
 ## Script calls (type 0xe6)
@@ -242,13 +268,13 @@ Not recorded: camera moves, pause (paused time has no frames), weapon facing, ai
 
 Both fields hold printable ASCII up to their NUL; the parser reports a record that breaks this as invalid. The bytes after a NUL are usually zero but can hold leftovers. Bytes 1 to 16 are zero when the sender is 0.
 
-Functions seen in v1.38.2:
+Functions seen in v1.38.2 and v1.39.0:
 
 | Function | Sender | Arguments |
 |---|---|---|
-| `OnStreamComplete` | game | a number and `true`; `1, true` at frame 80 |
+| `OnStreamComplete` | game | a number and `true`; `1, true` at frame 80, in v1.38.2 in skirmishes only, in v1.39.0 in every game |
 | `OnDeviceSelected` | game | the selected device's name in quotes, such as `"reactor"` |
-| `OnBuildError` | game | a number |
+| `OnBuildError` | game | a number; 8 in v1.39.0 for a click with a locked technology slot selected |
 | `FireWeapon` | player | a number, a `Vec` world position and two numbers |
 | `OverrideAntiAirOfWeapon` | player | two numbers, then a number or `nil` |
 
@@ -269,9 +295,21 @@ These types stay raw (`msg.Raw`). Counts are from 103 v1.38.2 replays: 38 multip
 | 0xc9 | 33 | 4 records in 2 games | u32@24 a device, f32@28, u8@32. See 0xc8. |
 | 0xe3 | 36 | 10 records in 3 games | Sender 0 |
 
+**Version 1390**, from 13 single-player replays and one lobby game. Here the types are those of 1390. Chat (0x9d) keeps the 1383 layout. The other low types carry SteamIDs at fixed positions, and one SteamID in 0x8d belongs to no player entry, so a tool that hides SteamIDs goes by position, not by the player table.
+
+| Type | Bytes | What is known |
+|---|---|---|
+| 0x8d | 140 | SteamIDs at 76 and 84, or none. Candidate: the 1383 0x8d, 5 bytes longer, with its `05 00 00 00 00 00 00 00` marker at 92. |
+| 0x8f | 36 | A SteamID at 24 and a small number at 32. The 1383 0x8f (32 bytes) has the player ID at 20 and 24 and the small number at 28. |
+| 0x90 | 48 | SteamIDs at 24 and 36 |
+| 0x91 | 40 | A SteamID at 24 |
+| 0xcc | 28 | The 1383 0xc8: u32@24 a device. Written 2 frames after a water cannon's fire command (0xce), naming the water cannon. |
+
 ## Ranked result (type 0xbb)
 
 The game writes it when a ranked match ends, 8 to 128 frames after the last snapshot before the end. One sample also holds the other client's record, two frames apart. Other games have none.
+
+In version 1390 its type is not known: 0xbb lies between the ranges that moved by 3 and by 4, so 0xbe and 0xbf are the candidates, and no sample holds either with this layout. The parser leaves the record undecoded and warns for a ranked 1390 replay; the result then comes from the snapshots.
 
 | Offset | Type | Meaning |
 |---|---|---|
@@ -285,21 +323,21 @@ The game writes it when a ranked match ends, 8 to 128 frames after the last snap
 
 ## Screenshots (type 0xe2)
 
-Written with player 0, about every 60 seconds in lobby games and irregularly in ranked ones; the header lists the blocks that hold them. Candidate: previews for seeking in the replay viewer.
+Written with player 0, about every 60 seconds in lobby games and irregularly in ranked ones; the header lists the blocks that hold them. The size in every sample is 1024 × 576 in v1.38.2 and 1024 × 640 in v1.39.0. Candidate: previews for seeking in the replay viewer.
 
 | Offset | Type | Meaning |
 |---|---|---|
 | 24 | u32 | Width |
 | 28 | u32 | Height |
 | 32 | u32 | Bytes per pixel: 4 in every sample; the decoder also accepts 3 |
-| 36 | u32 | OpenGL pixel format: 0x1908 (RGBA) in every sample |
-| 40 | u32 | Candidate: the record's frame plus 1 |
+| 36 | u32 | OpenGL pixel format: 0x1908 (RGBA) in every v1.38.2 sample, 0x80e1 (BGRA) in v1.39.0. A tool that shows the pixels reads it. |
+| 40 | u32 | Candidate: the record's frame plus 1, in some v1.39.0 records plus 2 |
 | 44 | u8 | 0 or 1. Unknown. |
 | 45 | | Pixels, width × height × bytes per pixel |
 
 ## Snapshots (type 0xe1)
 
-A snapshot is binary world state with Lua tables embedded as text. Each Lua section is stored as `u32 length` followed by the text, which always starts with `data = `. Some sections are preceded by a script name stored the same way (`u32 length`, name bytes), for example `dlc_harpoon` and `dlc3`. In v1.38.2 games on Abyss every snapshot has seven sections, and all sections carry the same `data.gameFrame` (see "Ticks and syncs").
+A snapshot is binary world state with Lua tables embedded as text. Each Lua section is stored as `u32 length` followed by the text, which always starts with `data = `. Some sections are preceded by a script name stored the same way (`u32 length`, name bytes), for example `dlc_harpoon` and `dlc3`. In v1.38.2 games on Abyss every snapshot has seven sections, and all sections carry the same `data.gameFrame` (see "Ticks and syncs"). Version 1390 also stores script names without a section, followed by a u32 0, such as `faction-asia`, `faction-fb` and `faction-russia`, between and after the sections.
 
 The Lua text follows the game's table serializer:
 
@@ -313,7 +351,7 @@ The first snapshot after the match ends adds `gameEnded = true` and `gameWinner 
 
 ### Snapshot header
 
-The binary layout below is known for header version 1383. It holds in all 8,967 snapshots of 105 v1.38.2 replays. Offsets are into the payload, byte 0 being the type.
+The binary layout below is known for header versions 1383 and 1390. It holds in all 8,967 snapshots of 105 v1.38.2 replays and all 676 snapshots of 14 v1.39.0 replays. Offsets are into the payload, byte 0 being the type.
 
 | Offset | Type | Meaning |
 |---|---|---|
@@ -429,7 +467,7 @@ Fields by offset from the marker:
 | +44 | f32 | t. Candidate: the position from node A to node B, as in 0xd2. |
 | +48 | f32 | Current health; the maximum is not stored |
 
-The body is 168 bytes after the marker. When the 4 bytes after it, at +172, are `f1 f1 f1 f1`, the device is a weapon, and its body is 388 + 24 × n24 + 9 × (nA + nB) bytes after the marker: u32 n24 at +380 counts 24-byte beam entries, then come u32 nA and nA × 9 bytes, then u32 nB and nB × 9 bytes.
+The body is 168 bytes after the marker. When the 4 bytes after it, at +172, are `f1 f1 f1 f1`, the device is a weapon, and its body is 388 + 24 × n24 + 9 × (nA + nB) bytes after the marker: u32 n24 at +380 counts 24-byte beam entries, then come u32 nA and nA × 9 bytes, then u32 nB and nB × 9 bytes. Version 1390 has 4 more bytes at +184, 0 in every sample, so every later weapon field is 4 bytes further on, n24 at +384, and the body is 392 + 24 × n24 + 9 × (nA + nB) bytes.
 
 Type IDs shift with the game options, as in commands, so a type ID names a device only within one replay; 81 names occur in the replays. A sequential walk of the device table always ends exactly at the material table.
 
