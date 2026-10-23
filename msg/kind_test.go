@@ -14,8 +14,10 @@ func TestKindNames(t *testing.T) {
 			continue
 		}
 		name := KindName(typ)
-		if r.Lookup(typ, 1383) != nil && name == "" {
-			t.Errorf("type %#02x has a decoder and no kind name", typ)
+		for _, v := range []uint32{1383, 1390} {
+			if rt, ok := RecordType(typ, v); ok && r.Lookup(rt, v) != nil && name == "" {
+				t.Errorf("version %d: type %#02x has a decoder and no kind name", v, typ)
+			}
 		}
 		if prev, ok := seen[name]; ok && name != "" {
 			t.Errorf("types %#02x and %#02x are both %q", prev, typ, name)

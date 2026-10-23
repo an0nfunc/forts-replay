@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package state decodes the binary data of a state snapshot (message
-// 0xe1) for header version 1383: the header's per-team resources and
-// damage counters, the player slots, and the world state after the Lua
-// sections (nodes, devices and struts). The tail after the struts is not
-// decoded.
+// 0xe1, 0xe5 in header version 1390) for header versions 1383 and 1390: the
+// header's per-team resources and damage counters, the player slots, and
+// the world state after the Lua sections (nodes, devices and struts). The
+// tail after the struts is not decoded.
 package state
 
 import (
@@ -15,8 +15,12 @@ import (
 	"math"
 )
 
-// ErrCorrupt reports a snapshot that does not follow the layout.
-var ErrCorrupt = errors.New("state: corrupt")
+var (
+	// ErrCorrupt reports a snapshot that does not follow the layout.
+	ErrCorrupt = errors.New("state: corrupt")
+	// ErrVersion reports a header version whose snapshots are not decoded.
+	ErrVersion = errors.New("state: version not decoded")
+)
 
 // Version is the header version whose snapshots Parse decodes.
 const Version = 1383
@@ -64,7 +68,6 @@ const (
 	deviceMarker  = 0xdededede
 	deviceBody    = 168 // bytes after the marker
 	weaponMarker  = 0xf1f1f1f1
-	weaponCounts  = 380 // marker-relative offset of the beam count
 	linkBody      = 85
 	linkBodyStart = 0x01010101
 )
@@ -124,9 +127,39 @@ type Link struct {
 	State        uint8 // 0 building, 1 finished, 2 repairing, 3 deconstructing, 4 to 6 shield and portal states
 }
 
-// Parse decodes one snapshot payload. start is the end of its last Lua
-// section, where the world state begins.
+// weaponCounts returns the marker-relative offset of a weapon's beam count
+// in header version v, and false for a version whose snapshots are not
+// decoded. Version 1390 adds a 4-byte field at +184.
+func weaponCounts(v uint32) (int, bool) {
+	switch v {
+	case 1383:
+		return 380, true
+	case 1390:
+		return 384, true
+	}
+	return 0, false
+}
+
+// Decodes reports whether ParseVersion decodes the snapshots of header
+// version v.
+func Decodes(v uint32) bool {
+	_, ok := weaponCounts(v)
+	return ok
+}
+
+// Parse decodes one snapshot payload of header version 1383. start is the
+// end of its last Lua section, where the world state begins.
 func Parse(payload []byte, start int) (*State, error) {
+	return ParseVersion(Version, payload, start)
+}
+
+// ParseVersion decodes one snapshot payload of header version v, as Parse
+// does for version 1383.
+func ParseVersion(v uint32, payload []byte, start int) (*State, error) {
+	counts, ok := weaponCounts(v)
+	if !ok {
+		return nil, fmt.Errorf("%w: version %d", ErrVersion, v)
+	}
 	if len(payload) < headerEnd {
 		return nil, corrupt("payload of %d bytes ends before offset %d", len(payload), headerEnd)
 	}
@@ -137,7 +170,7 @@ func Parse(payload []byte, start int) (*State, error) {
 	if err := s.header(payload); err != nil {
 		return nil, err
 	}
-	if err := s.world(payload, start); err != nil {
+	if err := s.world(payload, start, counts); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -181,8 +214,9 @@ func (s *State) header(b []byte) error {
 	return nil
 }
 
-// world reads the node, device, material and link tables from start.
-func (s *State) world(b []byte, start int) error {
+// world reads the node, device, material and link tables from start;
+// counts is the offset weaponCounts returns.
+func (s *State) world(b []byte, start, counts int) error {
 	m := bytes.Index(b[start:], []byte(nodeMark))
 	if m < 4 {
 		return corrupt("no node table after offset %d", start)
@@ -192,7 +226,7 @@ func (s *State) world(b []byte, start int) error {
 	if r.err != nil {
 		return r.err
 	}
-	devs, off, err := gapAndItems(b, r.off)
+	devs, off, err := gapAndItems(b, r.off, counts)
 	if err != nil {
 		return err
 	}
@@ -272,7 +306,7 @@ type item struct {
 // and the first material name's length. So the gap is at least the run
 // minus gapTail, and at most seven lengths are tried, never one per byte of
 // the run.
-func gapAndItems(b []byte, off int) ([]item, int, error) {
+func gapAndItems(b []byte, off, counts int) ([]item, int, error) {
 	run := 0
 	for off+run < len(b) && b[off+run] <= 1 {
 		if run == maxGap {
@@ -285,7 +319,7 @@ func gapAndItems(b []byte, off int) ([]item, int, error) {
 	for g := run &^ 1; g >= max(run-gapTail, 0); g -= 2 {
 		var end int
 		var err error
-		devs, end, err = items(b, off+g, devs[:0])
+		devs, end, err = items(b, off+g, counts, devs[:0])
 		if err == nil {
 			return devs, end, nil
 		}
@@ -298,14 +332,14 @@ func gapAndItems(b []byte, off int) ([]item, int, error) {
 
 // items reads the device and material tables at off, appending the
 // devices to devs.
-func items(b []byte, off int, devs []item) ([]item, int, error) {
+func items(b []byte, off, counts int, devs []item) ([]item, int, error) {
 	r := &reader{b: b, off: off}
 	n := r.u32()
 	if r.err == nil && n > maxDevices {
 		r.failf("%d devices at offset %d", n, off)
 	}
 	for i := uint32(0); i < n && r.err == nil; i++ {
-		d := r.device()
+		d := r.device(counts)
 		if r.err == nil {
 			devs = append(devs, d)
 		}
@@ -323,8 +357,8 @@ func items(b []byte, off int, devs []item) ([]item, int, error) {
 }
 
 // device reads one device: a header ending in a marker, then a body. A
-// weapon's body is longer and holds three counted arrays.
-func (r *reader) device() item {
+// weapon's body is longer and holds three counted arrays from counts.
+func (r *reader) device(counts int) item {
 	start := r.off
 	name := r.name()
 	r.u32() // team, as in the body
@@ -353,7 +387,7 @@ func (r *reader) device() item {
 	}
 	if r.peek32() == weaponMarker {
 		d.Weapon = true
-		r.skip(weaponCounts - 4 - deviceBody)
+		r.skip(int64(counts - 4 - deviceBody))
 		r.skip(24 * int64(r.u32()))
 		r.skip(9 * int64(r.u32()))
 		r.skip(9 * int64(r.u32()))

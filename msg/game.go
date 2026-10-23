@@ -13,7 +13,7 @@ const (
 	TypeScreenshot byte = 0xe2
 
 	screenshotHead    = 45
-	maxScreenshotSide = 1 << 16 // pixels; 1024 × 576 in every sample
+	maxScreenshotSide = 1 << 16 // pixels; 1024 × 576 or 1024 × 640 in every sample
 )
 
 // Result is the result of a ranked match, written when it ends. A replay
@@ -37,7 +37,7 @@ type Screenshot struct {
 	Width  uint32 `json:"width"`
 	Height uint32 `json:"height"`
 	Depth  uint32 `json:"depth"`  // bytes per pixel: 4 in every sample, 3 accepted
-	Format uint32 `json:"format"` // OpenGL pixel format, 0x1908 for RGBA
+	Format uint32 `json:"format"` // OpenGL pixel format: 0x1908 RGBA, 0x80e1 BGRA
 	Frame  uint32 `json:"frame"`  // candidate: the record's frame plus 1
 	Flag   bool   `json:"flag"`   // u8@44, 0 or 1; meaning unknown
 }
@@ -49,8 +49,8 @@ func decodeScreenshot(p []byte) (Message, error) {
 	if len(p) < screenshotHead {
 		return nil, fmt.Errorf("length %d, want at least %d", len(p), screenshotHead)
 	}
-	if p[17] != TypeScreenshot {
-		return nil, fmt.Errorf("byte 17 is %#02x, want %#02x", p[17], TypeScreenshot)
+	if p[17] != p[0] {
+		return nil, fmt.Errorf("byte 17 is %#02x, want %#02x", p[17], p[0])
 	}
 	b := &body{p: p}
 	s := &Screenshot{
@@ -74,14 +74,14 @@ func decodeScreenshot(p []byte) (Message, error) {
 	return s, nil
 }
 
-// registerGame adds the decoders of the game's own records for v.
-func registerGame(r *Registry, v Versions) {
-	r.Register(TypeResult, v, inputDecoder(85, TypeResult, func(in Input, b *body) Message {
+// registerGame adds the decoders of the game's own records for version v.
+func registerGame(r *Registry, v uint32) {
+	register(r, v, TypeResult, inputDecoder(85, func(in Input, b *body) Message {
 		id := b.u64(32)
 		if b.u64(40) != id && b.err == nil {
 			b.err = errors.New("the SteamIDs at offsets 32 and 40 differ")
 		}
 		return &Result{Input: in, Winner: b.u32(24), Team: b.i32(28), SteamID: id}
 	}))
-	r.Register(TypeScreenshot, v, decodeScreenshot)
+	register(r, v, TypeScreenshot, decodeScreenshot)
 }

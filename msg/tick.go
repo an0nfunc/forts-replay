@@ -39,14 +39,14 @@ func (*Sync) MsgType() byte { return TypeSync }
 func (s *Sync) NextFrame(int64) int64 { return int64(s.Frame) }
 
 func decodeTick(p []byte) (Message, error) {
-	if err := checkStep(p, TypeTick, tickLen); err != nil {
+	if err := checkStep(p, tickLen, 0); err != nil {
 		return nil, err
 	}
 	return &Tick{Target: binary.LittleEndian.Uint32(p[24:])}, nil
 }
 
 func decodeSync(p []byte) (Message, error) {
-	if err := checkStep(p, TypeSync, syncLen); err != nil {
+	if err := checkStep(p, syncLen, 0); err != nil {
 		return nil, err
 	}
 	s := &Sync{Frame: binary.LittleEndian.Uint32(p[24:])}
@@ -56,13 +56,14 @@ func decodeSync(p []byte) (Message, error) {
 	return s, nil
 }
 
-// checkStep checks a record's length and the byte at offset 17.
-func checkStep(p []byte, b17 byte, n int) error {
+// checkStep checks a record's length, at least 18, and its byte 17: the
+// type, or the type minus dec.
+func checkStep(p []byte, n int, dec byte) error {
 	if len(p) != n {
 		return fmt.Errorf("length %d, want %d", len(p), n)
 	}
-	if p[17] != b17 {
-		return fmt.Errorf("byte 17 is %#02x, want %#02x", p[17], b17)
+	if p[17] != p[0] && p[17] != p[0]-dec {
+		return fmt.Errorf("byte 17 is %#02x, want %#02x", p[17], p[0])
 	}
 	return nil
 }

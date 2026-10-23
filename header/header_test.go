@@ -85,6 +85,11 @@ func setupRaw(s fwrtest.Setup) []byte {
 	return fwrtest.File(fwrtest.Header{Version: 1383, Extra: s.Extra()})
 }
 
+// setupRaw1390 is setupRaw for version 1390.
+func setupRaw1390(s fwrtest.Setup) []byte {
+	return fwrtest.File(fwrtest.Header{Version: 1390, Extra: s.Extra1390()})
+}
+
 // lobby is a 4v4 lobby game with commanders, a spectator, AI forts, images
 // and custom teams.
 func lobby(ranked bool) fwrtest.Setup {
@@ -129,6 +134,66 @@ func TestSetup(t *testing.T) {
 		}
 		if !reflect.DeepEqual(h, want) {
 			t.Errorf("ranked %v:\n got %+v\nwant %+v", ranked, h, want)
+		}
+	}
+}
+
+// TestSetup1390: a version 1390 header decodes like the same fields in
+// version 1383, with the date at offset 25 and every later fixed offset
+// 0x16 bytes on; a date of another length is corrupt.
+func TestSetup1390(t *testing.T) {
+	for _, ranked := range []bool{false, true} {
+		s := lobby(ranked)
+		s.Date = "20261023_195552"
+		want, err := Parse(1383, setupRaw(s))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want.Date, want.Rest = s.Date, want.Rest+dateShift
+		if h, err := Parse(1390, setupRaw1390(s)); err != nil || !reflect.DeepEqual(h, want) {
+			t.Errorf("ranked %v:\n got %+v, %v\nwant %+v", ranked, h, err, want)
+		}
+	}
+	for _, date := range []string{"", "20261023_19555", "20261023_1955520"} {
+		s := lobby(false)
+		s.Date = date
+		if h, err := Parse(1390, setupRaw1390(s)); !errors.Is(err, ErrCorrupt) || h != nil {
+			t.Errorf("date %q: %+v, %v", date, h, err)
+		}
+	}
+}
+
+// TestFixtures1390: each v1.39.0 replay's header decodes to that of its
+// v1.38.2 twin, apart from the date, the offsets and the commander of an
+// AI side, which the game picks at random.
+func TestFixtures1390(t *testing.T) {
+	dates := map[string]string{
+		"skirmish-idle.fwr": "20261023_195552", "devices.fwr": "20261023_195831", "weapons-1-3.fwr": "20261023_200237",
+		"struts-materials-1-4.fwr": "20261023_200426", "fire-mg-mortar.fwr": "20261023_200557",
+		"upgrade-weapons.fwr": "20261023_200808", "probe-delete.fwr": "20261023_201549", "probe-node.fwr": "20261023_201724",
+		"swap-material.fwr": "20261023_201910", "tech.fwr": "20261023_202039", "economy-storage.fwr": "20261023_202226",
+		"damage-weapons.fwr": "20261023_203033", "skirmish-quit.fwr": "20261023_203618",
+	}
+	for _, name := range fixture.V1390 {
+		hdr, _ := fixture.Read1390(t, "..", name)
+		h, err := Parse(1390, hdr.Raw)
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		twin, err := Parse(1383, fixtureRaw(t, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if h.Date != dates[name] {
+			t.Errorf("%s: date %q", name, h.Date)
+		}
+		h.Date, h.Rest = "", h.Rest-dateShift
+		if len(h.AI) > 0 && len(h.Commanders) == 2 && len(twin.Commanders) == 2 {
+			h.Commanders[1] = twin.Commanders[1]
+		}
+		if !reflect.DeepEqual(h, twin) {
+			t.Errorf("%s:\n got %+v\nwant %+v", name, h, twin)
 		}
 	}
 }
@@ -188,7 +253,7 @@ func TestTailCorrupt(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	raw := fixtureRaw(t, fixture.Names[0])
-	for _, v := range []uint32{0, 1382, 1384} {
+	for _, v := range []uint32{0, 1382, 1384, 1389, 1391} {
 		if _, err := Parse(v, raw); !errors.Is(err, ErrVersion) {
 			t.Errorf("version %d: err %v", v, err)
 		}

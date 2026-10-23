@@ -46,7 +46,7 @@ const (
 // schema v1.
 type Summary struct {
 	SchemaVersion int               `json:"schema_version"`
-	FormatVersion uint32            `json:"format_version"` // header version, 1383 in game v1.38.2
+	FormatVersion uint32            `json:"format_version"` // header version: 1383 in game v1.38.2, 1390 in v1.39.0
 	Frames        uint32            `json:"frames"`
 	Duration      float64           `json:"duration"` // seconds
 	Ranked        bool              `json:"ranked"`
@@ -57,7 +57,7 @@ type Summary struct {
 	Commanders    []Commander       `json:"commanders,omitempty"` // the sides with a commander
 	Result        *Result           `json:"result,omitempty"`
 	Timelines     []*PlayerTimeline `json:"timelines,omitempty"` // by player ID
-	State         *StateSeries      `json:"state,omitempty"`     // header version 1383 only
+	State         *StateSeries      `json:"state,omitempty"`     // header versions 1383 and 1390 only
 	Losses        []DeviceEvent     `json:"losses,omitempty"`
 	Builds        []DeviceEvent     `json:"builds,omitempty"`
 	DeviceTypes   map[uint16]string `json:"device_types,omitempty"` // type ID to save-name, from the snapshots
@@ -210,7 +210,7 @@ func newBuilder(hdr container.Header, reg *msg.Registry, opts Options) *builder 
 			SchemaVersion: SchemaVersion, FormatVersion: hdr.Version, Frames: hdr.Frames,
 			Duration: float64(hdr.Frames) / FramesPerSecond, Warnings: []string{},
 		},
-		hasSync: reg.Lookup(msg.TypeSync, hdr.Version) != nil,
+		hasSync: decodes(reg, msg.TypeSync, hdr.Version),
 		tl:      NewTimeline(opts.Timeline),
 	}
 	h, err := header.Parse(hdr.Version, hdr.Raw)
@@ -225,6 +225,9 @@ func newBuilder(hdr container.Header, reg *msg.Registry, opts Options) *builder 
 	b.st = newStateBuilder(hdr.Version, b.hdr, opts.Timeline, b.warnf)
 	if h != nil {
 		b.sum.Ranked, b.sum.Map, b.sum.Options = h.Ranked, h.Map, h.Options
+		if h.Ranked && !decodes(reg, msg.TypeResult, hdr.Version) {
+			b.warnf("ranked result not decoded for version %d", hdr.Version)
+		}
 		if h.Commanders == nil {
 			b.warnf("header: commander names do not decode")
 		}
@@ -235,6 +238,12 @@ func newBuilder(hdr container.Header, reg *msg.Registry, opts Options) *builder 
 		}
 	}
 	return b
+}
+
+// decodes reports whether reg decodes messages of type t in version v.
+func decodes(reg *msg.Registry, t byte, v uint32) bool {
+	rt, ok := msg.RecordType(t, v)
+	return ok && reg.Lookup(rt, v) != nil
 }
 
 func (b *builder) add(rec stream.Record, frame int64, m msg.Message) {

@@ -34,6 +34,12 @@ func fixturePath(tb testing.TB, name string) string {
 	return fixture.Path(tb, "../..", name)
 }
 
+// fixturePath1390 returns the path of one replay of fixture.V1390.
+func fixturePath1390(tb testing.TB, name string) string {
+	tb.Helper()
+	return fixture.Path1390(tb, "../..", name)
+}
+
 // f278 and f974 return the paths of the two sample games.
 func f278(tb testing.TB) string {
 	tb.Helper()
@@ -73,9 +79,13 @@ func TestGolden(t *testing.T) {
 		{"info-probe-dblclick.json", []string{"info", "--json", fixturePath(t, "probe-dblclick.fwr")}},
 		{"dump-probe-delete.jsonl", []string{"dump", "--json", "--type", "0xcb,0xcd,0xce,0xd2,0xd6", fixturePath(t, "probe-delete.fwr")}},
 		{"dump-probe-dblclick-fire.txt", []string{"dump", "--type", "0xc5,0xc6,0xc7,0xca", fixturePath(t, "probe-dblclick.fwr")}},
+		{"info-v1390-damage-weapons.json", []string{"info", "--json", fixturePath1390(t, "damage-weapons.fwr")}},
 	}
 	for _, name := range fixture.Probes {
 		cases = append(cases, goldenCase{"info-" + strings.TrimSuffix(name, ".fwr") + ".txt", []string{"info", fixturePath(t, name)}})
+	}
+	for _, name := range fixture.V1390 {
+		cases = append(cases, goldenCase{"info-v1390-" + strings.TrimSuffix(name, ".fwr") + ".txt", []string{"info", fixturePath1390(t, name)}})
 	}
 	version, err := json.Marshal(parserVersion())
 	if err != nil {
@@ -686,6 +696,22 @@ func TestDumpState(t *testing.T) {
 	}
 }
 
+// TestDumpState1390: dump decodes the state of version 1390 snapshots
+// (0xe5), weapons included.
+func TestDumpState1390(t *testing.T) {
+	code, out, _ := runCmd(t, "dump", "--json", "--type", "0xe5", fixturePath1390(t, "fire-mg-mortar.fwr"))
+	docs := jsonLines(t, out)
+	if code != 0 || len(docs) < 2 {
+		t.Fatalf("exit %d, %d docs", code, len(docs))
+	}
+	for _, d := range docs[:len(docs)-1] {
+		st, _ := d["state"].(map[string]any)
+		if d["kind"] != "snapshot" || st == nil || st["devices"] == nil {
+			t.Errorf("block %v: %v %v", d["block"], d["kind"], d["state"])
+		}
+	}
+}
+
 // TestInfoHostileNames sends names with control, format and bidi
 // characters through the real info encoders: neither output holds an
 // unprintable rune, and the JSON gives the names back unchanged.
@@ -777,6 +803,9 @@ func TestInfoSchema(t *testing.T) {
 	}
 	for _, name := range slices.Concat(fixture.Names, fixture.Probes, corpusFiles) {
 		files = append(files, fixturePath(t, name))
+	}
+	for _, name := range fixture.V1390 {
+		files = append(files, fixturePath1390(t, name))
 	}
 	validate := func(sch *jsonschema.Schema, doc string) error {
 		v, err := jsonschema.UnmarshalJSON(strings.NewReader(doc))
@@ -1018,6 +1047,66 @@ func TestDumpSteamID(t *testing.T) {
 		if shown != want.records {
 			t.Errorf("%s: dump --json: %d records with SteamIDs", file, shown)
 		}
+	}
+}
+
+// TestDumpSteamID1390: in version 1390, dump and hex zero the SteamIDs of
+// 0x8d and 0x8f to 0x91 by position, also values whose upper half is not a
+// SteamID64's.
+func TestDumpSteamID1390(t *testing.T) {
+	const id = 1234567890123456789
+	le := binary.LittleEndian
+	rec := func(typ byte, n int, at ...int) []byte {
+		p := make([]byte, n)
+		p[0], p[17] = typ, typ
+		for i, off := range at {
+			le.PutUint64(p[off:], id-uint64(i))
+		}
+		return fwrtest.Record(p, false)
+	}
+	records := bytes.Join([][]byte{rec(0x8d, 140, 76, 84), rec(0x8f, 36, 24), rec(0x90, 48, 24, 36), rec(0x91, 40, 24)}, nil)
+	file := write(t, t.TempDir(), "v1390.fwr", fwrtest.File(fwrtest.Header{Version: 1390}, records))
+	blanked := map[string][][2]int{"0x8d": {{76, 92}}, "0x8f": {{24, 32}}, "0x90": {{24, 32}, {36, 44}}, "0x91": {{24, 32}}}
+	runs := [][]string{{"dump", file}, {"dump", "--json", file}}
+	for typ := range blanked {
+		runs = append(runs, []string{"hex", "--max-bytes", "200", "--type", typ, file})
+	}
+	forms := steamIDForms(id, id-1)
+	var docs []map[string]any
+	for _, args := range runs {
+		code, out, errOut := runCmd(t, args...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d: %s", args, code, errOut)
+		}
+		for _, f := range forms {
+			if strings.Contains(out, f) {
+				t.Errorf("%v: output holds %q", args, f)
+			}
+		}
+		if args[1] == "--json" {
+			docs = jsonLines(t, out)
+		}
+	}
+	shown := 0
+	for _, d := range docs {
+		typ, _ := d["type"].(string)
+		ranges, ok := blanked[typ]
+		if !ok {
+			continue
+		}
+		shown++
+		p, err := hex.DecodeString(d["payload"].(string))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range ranges {
+			if slices.ContainsFunc(p[r[0]:r[1]], func(c byte) bool { return c != 0 }) {
+				t.Errorf("%s: bytes %d to %d not zeroed", typ, r[0], r[1]-1)
+			}
+		}
+	}
+	if shown != len(blanked) {
+		t.Errorf("dump --json: %d records with SteamIDs", shown)
 	}
 }
 

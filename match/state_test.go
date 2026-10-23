@@ -733,6 +733,84 @@ func TestStateCorpus(t *testing.T) {
 	})
 }
 
+// TestStateCorpus1390 pins series, the result, builds and device types
+// from the v1.39.0 replays.
+func TestStateCorpus1390(t *testing.T) {
+	team1 := func(t *testing.T, s *Summary) TeamSeries {
+		t.Helper()
+		for _, ts := range s.State.Teams {
+			if ts.Team == 1 {
+				return ts
+			}
+		}
+		t.Fatal("no team 1")
+		return TeamSeries{}
+	}
+	t.Run("economy", func(t *testing.T) {
+		s := buildFile(t, fixtureFile1390(t, "economy-storage.fwr"))
+		t1, last := team1(t, s), len(s.State.Frames)-1
+		if t1.FloatedMetal[last] != 4820.06 || t1.FloatedEnergy[last] != 41138.85 {
+			t.Errorf("floated %v, %v at the end", t1.FloatedMetal[last], t1.FloatedEnergy[last])
+		}
+		for i, f := range s.State.Frames {
+			want := [2]float32{600, 3000}
+			switch {
+			case f >= 6608:
+				want = [2]float32{900, 5000}
+			case f >= 3412:
+				want = [2]float32{600, 5000}
+			}
+			if got := [2]float32{t1.MaxMetal[i], t1.MaxEnergy[i]}; got != want {
+				t.Errorf("frame %d: maximum %v", f, got)
+			}
+		}
+	})
+	t.Run("damage", func(t *testing.T) {
+		s := buildFile(t, fixtureFile1390(t, "damage-weapons.fwr"))
+		t1, last := team1(t, s), len(s.State.Frames)-1
+		taken := s.State.Sides[1].DamageTaken
+		for i, f := range s.State.Frames {
+			if f < 6608 && t1.DamageDealt[i] != taken[i] {
+				t.Errorf("frame %d: dealt %v, side 2 taken %v", f, t1.DamageDealt[i], taken[i])
+			}
+		}
+		if t1.DamageDealt[last] != 5152.5083 || taken[last] != 6245.5874 || slices.Max(s.State.Players[0].Damage) != 5174.08 {
+			t.Errorf("at the end: dealt %v, taken %v, player %v", t1.DamageDealt[last], taken[last], slices.Max(s.State.Players[0].Damage))
+		}
+		if !reflect.DeepEqual(s.Result, &Result{Winner: 1, Frame: 6608, Source: SourceSnapshot}) {
+			t.Errorf("result %+v", s.Result)
+		}
+		var got []DeviceEvent
+		for _, b := range s.Builds {
+			if b.Team == 1 {
+				got = append(got, b)
+			}
+		}
+		want := []DeviceEvent{
+			{Frame: 1140, Team: 1, Device: 12, TypeID: 2, Name: "sniper", Weapon: true},
+			{Frame: 1644, Team: 1, Device: 13, TypeID: 22, Name: "fireball_cannon", Weapon: true},
+			{Frame: 1896, Team: 1, Device: 14, TypeID: 4, Name: "watercannon", Weapon: true},
+			{Frame: 2148, Team: 1, Device: 15, TypeID: 0, Name: "machinegun", Weapon: true},
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("team 1 builds %+v", got)
+		}
+	})
+	t.Run("device types", func(t *testing.T) {
+		for name, want := range map[string]map[uint16]string{
+			"fire-mg-mortar.fwr": {0: "machinegun", 4: "watercannon"},
+			"devices.fwr":        {35: "turbine", 38: "battery"},
+		} {
+			s := buildFile(t, fixtureFile1390(t, name))
+			for id, n := range want {
+				if s.DeviceTypes[id] != n {
+					t.Errorf("%s: device types %v", name, s.DeviceTypes)
+				}
+			}
+		}
+	})
+}
+
 // TestBuildsCorpus pins team 1's finished devices in the economy and damage
 // probes.
 func TestBuildsCorpus(t *testing.T) {

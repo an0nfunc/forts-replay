@@ -1,0 +1,27 @@
+version    1390
+frames     2602 (104.08 s)
+ranked     no
+options    "repair_station" "unlimited-energy" "unlimited-metal" "weapon_pack" "dlc1_portal_skirmish" "dlc1_weapons_skirmish" "dlc3" "fast-build" "unlock-all-weapons"
+map        "maps/Abyss/Abyss.fwe"
+player     1: slot 0, team 1, side 1, "random🐧", recorder
+result     not recorded
+blocks     21
+records    2991
+types      0x95=244 0x96=2 0x97=1 0x98=72 0x9a=41 0xc2=1301 0xc4=1301 0xcc=1 0xce=4 0xd6=2 0xe5=21 0xea=1
+syncs      1301, last at frame 2602
+commands   player 1: fire=4 place=2
+build      player 1 at 39.28 s: place type 0
+build      player 1 at 50.40 s: place type 4
+economy    team 1: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+economy    team 2: floated metal 0.0, energy 0.0; peak storage metal 999999995904.0, energy 999999995904.0
+losses     team 1: weapons 0, other devices 0, struts 0
+losses     team 2: weapons 0, other devices 0, struts 0
+reactor    team 1: health 100.0
+reactor    team 2: health 100.0
+damage     team 1: dealt 36.0
+damage     team 2: dealt 0.0
+builds     team 1: 2, first weapon "machinegun" at frame 1140
+builds     team 2: 0
+taken      side 1: 0.0
+taken      side 2: 36.0
+damage     player 1: 36.0, mean APM 11.4

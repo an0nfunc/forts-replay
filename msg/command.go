@@ -330,77 +330,77 @@ type Ammo struct {
 func (*Ammo) MsgType() byte { return TypeAmmo }
 func (*Ammo) command()      {}
 
-// registerCommands adds the command decoders for v.
-func registerCommands(r *Registry, v Versions) {
-	r.Register(TypeFireStart, v, inputDecoder(45, TypeFireStart, func(in Input, b *body) Message {
+// registerCommands adds the command decoders for version v.
+func registerCommands(r *Registry, v uint32) {
+	register(r, v, TypeFireStart, inputDecoder(45, func(in Input, b *body) Message {
 		return &FireStart{Input: in, Device: b.u32(24)}
 	}))
-	r.Register(TypeFireEnd, v, inputDecoder(28, TypeFireEnd, func(in Input, b *body) Message {
+	register(r, v, TypeFireEnd, inputDecoder(28, func(in Input, b *body) Message {
 		return &FireEnd{Input: in, Device: b.u32(24)}
 	}))
-	r.Register(TypeFireBlocked, v, inputDecoder(33, TypeFireBlocked, func(in Input, b *body) Message {
+	register(r, v, TypeFireBlocked, inputDecoder(33, func(in Input, b *body) Message {
 		return &FireBlocked{Input: in, Device: b.u32(24), Angle: b.f32(29)}
 	}))
-	r.Register(TypeFire, v, inputDecoder(51, TypeFire, func(in Input, b *body) Message {
+	register(r, v, TypeFire, inputDecoder(51, func(in Input, b *body) Message {
 		return &Fire{Input: in, Device: b.u32(28), Angle: b.f32(33), Power: b.f32(37), Immediate: b.flag(49)}
 	}))
-	r.Register(TypeStrut, v, inputDecoder(74, TypeStrut, func(in Input, b *body) Message {
+	register(r, v, TypeStrut, inputDecoder(74, func(in Input, b *body) Message {
 		return &Strut{
 			Input: in, Serial: b.u32(24), X: b.f32(32), Y: b.f32(36), DX: b.f32(40), DY: b.f32(44),
 			Source: b.u32(48), Material: b.u32(52), First: b.flag(64), Anchored: b.flag(66),
 		}
 	}))
-	r.Register(TypeDeleteNode, v, inputDecoder(33, TypeDeleteNode, func(in Input, b *body) Message {
+	register(r, v, TypeDeleteNode, inputDecoder(33, func(in Input, b *body) Message {
 		return &DeleteNode{Input: in, Team: b.i32(24), Node: b.u32(28)}
 	}))
-	r.Register(TypeLink, v, inputDecoder(50, TypeLink, func(in Input, b *body) Message {
+	register(r, v, TypeLink, inputDecoder(50, func(in Input, b *body) Message {
 		return &Link{Input: in, Team: b.i32(24), NodeA: b.u32(28), NodeB: b.u32(32), Material: b.u32(44), First: b.flag(48)}
 	}))
-	r.Register(TypeDeleteLink, v, inputDecoder(41, TypeDeleteLink, func(in Input, b *body) Message {
+	register(r, v, TypeDeleteLink, inputDecoder(41, func(in Input, b *body) Message {
 		return &DeleteLink{Input: in, Team: b.i32(24), NodeA: b.u32(28), NodeB: b.u32(32)}
 	}))
-	r.Register(TypeRepair, v, inputDecoder(32, TypeRepair, func(in Input, b *body) Message {
+	register(r, v, TypeRepair, inputDecoder(32, func(in Input, b *body) Message {
 		return &Repair{Input: in, Team: b.i32(24), Node: b.u32(28)}
 	}))
-	r.Register(TypeDoor, v, inputDecoder(44, TypeDoor, func(in Input, b *body) Message {
+	register(r, v, TypeDoor, inputDecoder(44, func(in Input, b *body) Message {
 		return &Door{Input: in, State: b.u32(24), NodeA: b.u32(28), NodeB: b.u32(32), Source: b.u32(36), Device: b.u32(40)}
 	}))
-	r.Register(TypePlace, v, inputDecoder(67, TypePlace, func(in Input, b *body) Message {
+	register(r, v, TypePlace, inputDecoder(67, func(in Input, b *body) Message {
 		return &Place{
 			Input: in, Team: b.i32(24), T: b.f32(28), TypeID: b.u32(32), NodeA: b.u32(36), NodeB: b.u32(40),
 			X: b.f32(44), Y: b.f32(48), Aim: b.f32(53), MovedDevice: b.i32(59),
 		}
 	}))
-	r.Register(TypeUpgrade, v, inputDecoder(36, TypeUpgrade, func(in Input, b *body) Message {
+	register(r, v, TypeUpgrade, inputDecoder(36, func(in Input, b *body) Message {
 		return &Upgrade{Input: in, Team: b.i32(24), Device: b.u32(28)}
 	}))
-	r.Register(TypeScrap, v, inputDecoder(34, TypeScrap, func(in Input, b *body) Message {
+	register(r, v, TypeScrap, inputDecoder(34, func(in Input, b *body) Message {
 		return &Scrap{Input: in, Team: b.i32(24), Device: b.u32(28)}
 	}))
-	r.Register(TypeAbility, v, inputDecoder(29, TypeAbility, func(in Input, b *body) Message {
+	register(r, v, TypeAbility, inputDecoder(29, func(in Input, b *body) Message {
 		return &Ability{Input: in, Team: b.i32(24)}
 	}))
-	r.Register(TypeRepairLink, v, inputDecoder(36, TypeRepairLink, func(in Input, b *body) Message {
+	register(r, v, TypeRepairLink, inputDecoder(36, func(in Input, b *body) Message {
 		return &RepairLink{Input: in, Team: b.i32(24), NodeA: b.u32(28), NodeB: b.u32(32)}
 	}))
-	r.Register(TypeRepairDevice, v, inputDecoder(32, TypeRepairDevice, func(in Input, b *body) Message {
+	register(r, v, TypeRepairDevice, inputDecoder(32, func(in Input, b *body) Message {
 		return &RepairDevice{Input: in, Team: b.i32(24), Device: b.u32(28)}
 	}))
 	// u32@36 (0 in every sample) is not decoded.
-	r.Register(TypeRepairArea, v, inputDecoder(44, TypeRepairArea, func(in Input, b *body) Message {
+	register(r, v, TypeRepairArea, inputDecoder(44, func(in Input, b *body) Message {
 		return &RepairArea{Input: in, Team: b.i32(24), X: b.f32(28), Y: b.f32(32), Radius: b.f32(40)}
 	}))
-	r.Register(TypePortalLink, v, inputDecoder(40, TypePortalLink, func(in Input, b *body) Message {
+	register(r, v, TypePortalLink, inputDecoder(40, func(in Input, b *body) Message {
 		return &PortalLink{Input: in, NodeA: b.u32(24), NodeB: b.u32(28), OtherA: b.u32(32), OtherB: b.u32(36)}
 	}))
-	r.Register(TypePortalReverse, v, inputDecoder(32, TypePortalReverse, func(in Input, b *body) Message {
+	register(r, v, TypePortalReverse, inputDecoder(32, func(in Input, b *body) Message {
 		return &PortalReverse{Input: in, NodeA: b.u32(24), NodeB: b.u32(28)}
 	}))
 	// u32@36 and i32@48 (-1 in every sample) are not decoded.
-	r.Register(TypeFireAt, v, inputDecoder(52, TypeFireAt, func(in Input, b *body) Message {
+	register(r, v, TypeFireAt, inputDecoder(52, func(in Input, b *body) Message {
 		return &FireAt{Input: in, X: b.f32(24), Y: b.f32(28), Angle: b.f32(32), Device: b.u32(40), Spotter: b.u32(44)}
 	}))
-	r.Register(TypeAmmo, v, inputDecoder(32, TypeAmmo, func(in Input, b *body) Message {
+	register(r, v, TypeAmmo, inputDecoder(32, func(in Input, b *body) Message {
 		return &Ammo{Input: in, Ammo: b.i32(24), Device: b.u32(28)}
 	}))
 }

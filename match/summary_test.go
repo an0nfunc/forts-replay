@@ -18,6 +18,8 @@ import (
 
 	"github.com/an0nfunc/forts-replay/internal/fixture"
 	"github.com/an0nfunc/forts-replay/internal/fwrtest"
+	"github.com/an0nfunc/forts-replay/msg"
+	"github.com/an0nfunc/forts-replay/stream"
 )
 
 // Synthetic SteamIDs with account IDs 0xffffffff and 0xfffffffe, which
@@ -45,18 +47,43 @@ func fixtureFile(tb testing.TB, name string) []byte {
 	return data
 }
 
+// fixtureFile1390 returns one replay of fixture.V1390.
+func fixtureFile1390(tb testing.TB, name string) []byte {
+	tb.Helper()
+	data, err := os.ReadFile(fixture.Path1390(tb, "..", name))
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return data
+}
+
 // game returns a synthetic two-player replay: header setup s, then two
 // steps (frames 2 and 4) and the records in end.
 func game(s fwrtest.Setup, end ...[]byte) []byte {
+	return gameIn(1383, s, end)
+}
+
+// gameIn is game for header version 1383 or 1390, with the records of end,
+// given as 1383 writes them, at the version's types, then the records of
+// raw as they are.
+func gameIn(v uint32, s fwrtest.Setup, end [][]byte, raw ...[]byte) []byte {
+	retype, extra := slices.Clone[[]byte], s.Extra()
+	if v == 1390 {
+		s.Date = "20261023_195552"
+		retype, extra = fwrtest.In1390, s.Extra1390()
+	}
 	recs := [][]byte{
-		fwrtest.Record(luaState("data = { gameFrame = 1, }"), true),
-		fwrtest.Record(fwrtest.Tick(4), false), fwrtest.Record(fwrtest.Sync(2), false),
-		fwrtest.Record(fwrtest.Tick(6), false), fwrtest.Record(fwrtest.Sync(4), false),
+		fwrtest.Record(retype(luaState("data = { gameFrame = 1, }")), true),
+		fwrtest.Record(retype(fwrtest.Tick(4)), false), fwrtest.Record(retype(fwrtest.Sync(2)), false),
+		fwrtest.Record(retype(fwrtest.Tick(6)), false), fwrtest.Record(retype(fwrtest.Sync(4)), false),
 	}
 	for _, p := range end {
+		recs = append(recs, fwrtest.Record(retype(p), false))
+	}
+	for _, p := range raw {
 		recs = append(recs, fwrtest.Record(p, false))
 	}
-	return fwrtest.File(fwrtest.Header{Version: 1383, Frames: 4, Extra: s.Extra()}, bytes.Join(recs, nil))
+	return fwrtest.File(fwrtest.Header{Version: v, Frames: 4, Extra: extra}, bytes.Join(recs, nil))
 }
 
 func duel(ranked bool) fwrtest.Setup {
@@ -138,6 +165,55 @@ func TestBuildFixtures(t *testing.T) {
 	}
 }
 
+// TestBuildFixtures1390: the v1.39.0 replays build without warnings or
+// invalid records, with a state point for every snapshot and the header
+// fields of their v1.38.2 twins. Where a twin's scenario ran the same
+// inputs, the player's commands are the same kinds in the same order.
+func TestBuildFixtures1390(t *testing.T) {
+	sameInputs := map[string]bool{
+		"devices.fwr": true, "economy-storage.fwr": true, "probe-delete.fwr": true, "probe-node.fwr": true,
+		"skirmish-idle.fwr": true, "skirmish-quit.fwr": true, "struts-materials-1-4.fwr": true,
+		"swap-material.fwr": true, "tech.fwr": true, "weapons-1-3.fwr": true,
+	}
+	kinds := func(s *Summary) [][]string {
+		var out [][]string
+		for _, tl := range s.Timelines {
+			var k []string
+			for _, e := range tl.Commands {
+				k = append(k, msg.KindName(e.Command.MsgType()))
+			}
+			out = append(out, k)
+		}
+		return out
+	}
+	for _, name := range fixture.V1390 {
+		invalid, snaps := 0, 0
+		s, err := Build(t.Context(), bytes.NewReader(fixtureFile1390(t, name)), Options{Observe: func(_ stream.Record, _ int64, m msg.Message) {
+			switch m.(type) {
+			case *msg.Invalid:
+				invalid++
+			case *msg.Snapshot:
+				snaps++
+			}
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if s.FormatVersion != 1390 || len(s.Warnings) > 0 || invalid > 0 || s.Truncated || s.State == nil || len(s.State.Frames) != snaps || len(s.DeviceTypes) == 0 {
+			t.Errorf("%s: version %d, warnings %q, %d invalid, truncated %v, state %v", name, s.FormatVersion, s.Warnings, invalid, s.Truncated, s.State != nil)
+			continue
+		}
+		twin := buildFile(t, fixtureFile(t, name))
+		if !reflect.DeepEqual(s.Options, twin.Options) || s.Map != twin.Map || !reflect.DeepEqual(s.Players, twin.Players) ||
+			!reflect.DeepEqual(s.AI, twin.AI) || len(s.Commanders) != len(twin.Commanders) {
+			t.Errorf("%s: header fields %+v, twin %+v", name, s, twin)
+		}
+		if sameInputs[name] && !reflect.DeepEqual(kinds(s), kinds(twin)) {
+			t.Errorf("%s: commands %v, twin %v", name, kinds(s), kinds(twin))
+		}
+	}
+}
+
 func TestBuildRanked(t *testing.T) {
 	s := buildFile(t, game(duel(true), fwrtest.Result(0, 1, 101, testSteamID), won(1)))
 	want := []Player{
@@ -147,6 +223,37 @@ func TestBuildRanked(t *testing.T) {
 	if !s.Ranked || !reflect.DeepEqual(s.Players, want) || len(s.Warnings) != 0 ||
 		!reflect.DeepEqual(s.Result, &Result{Winner: 1, Frame: 4, Source: SourceRanked}) || s.AI != nil {
 		t.Errorf("%+v", s)
+	}
+}
+
+// TestBuild1390: a version 1390 replay gives the summary its records give
+// in 1383. In a ranked one a record of the 1383 ranked result layout names
+// no result, under its 1383 type or the candidates 0xbe and 0xbf; the
+// snapshot's result stands, with a warning.
+func TestBuild1390(t *testing.T) {
+	end := [][]byte{fwrtest.Place(1, 101, 3, 5, 6, -1), fwrtest.Scrap(1, 101, 9), fwrtest.Ability(2), won(2)}
+	want := buildFile(t, game(duel(false), end...))
+	want.FormatVersion = 1390
+	if got := buildFile(t, gameIn(1390, duel(false), end)); !reflect.DeepEqual(got, want) {
+		t.Errorf("got  %+v\nwant %+v", got, want)
+	}
+	var results [][]byte
+	for _, typ := range []byte{0xbb, 0xbe, 0xbf} {
+		p := fwrtest.Result(0, 1, 101, testSteamID)
+		p[0], p[17] = typ, typ
+		results = append(results, p)
+	}
+	s := buildFile(t, gameIn(1390, duel(true), [][]byte{won(2)}, results...))
+	if !s.Ranked || !reflect.DeepEqual(s.Result, &Result{Winner: 2, Frame: 4, Source: SourceSnapshot}) ||
+		!reflect.DeepEqual(s.Warnings, []string{"ranked result not decoded for version 1390"}) {
+		t.Errorf("ranked: result %+v, warnings %q", s.Result, s.Warnings)
+	}
+	if s := buildFile(t, gameIn(1390, duel(false), nil, results...)); s.Result != nil || len(s.Warnings) != 0 {
+		t.Errorf("not ranked: result %+v, warnings %q", s.Result, s.Warnings)
+	}
+	noSync := fwrtest.File(fwrtest.Header{Version: 1390, Frames: 4}, fwrtest.Record(fwrtest.In1390(fwrtest.Tick(4)), true))
+	if s := buildFile(t, noSync); !slices.Contains(s.Warnings, "header has 4 frames, no sync decoded") {
+		t.Errorf("no sync: warnings %q", s.Warnings)
 	}
 }
 

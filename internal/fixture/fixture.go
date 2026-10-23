@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package fixture loads the v1.38.2 sample replays of the corpus for tests.
+// Package fixture loads the v1.38.2 sample replays and the v1.39.0 replays
+// of the corpus for tests.
 package fixture
 
 import (
@@ -25,6 +26,14 @@ var Probes = []string{
 	"probe-repair.fwr", "probe-dblclick.fwr", "probe-downgrade-overdrive.fwr", "probe-move-phantom.fwr",
 }
 
+// V1390 lists the replays of header version 1390 (game v1.39.0), each
+// repeating the scenario of the v1.38.2 replay of the same name.
+var V1390 = []string{
+	"damage-weapons.fwr", "devices.fwr", "economy-storage.fwr", "fire-mg-mortar.fwr", "probe-delete.fwr",
+	"probe-node.fwr", "skirmish-idle.fwr", "skirmish-quit.fwr", "struts-materials-1-4.fwr",
+	"swap-material.fwr", "tech.fwr", "upgrade-weapons.fwr", "weapons-1-3.fwr",
+}
+
 // Path returns the path of one sample replay, skipping the test without
 // the corpus (corpus.Require). root is the repository root relative to the
 // calling test's package directory.
@@ -33,11 +42,31 @@ func Path(tb testing.TB, root, name string) string {
 	return corpus.Path(tb, root, version+"/"+name)
 }
 
+// Path1390 returns the path of one replay of V1390, as Path does.
+func Path1390(tb testing.TB, root, name string) string {
+	tb.Helper()
+	return corpus.Path(tb, root, "v1.39.0/"+name)
+}
+
 // Read returns the header and the decompressed blocks of one sample
 // replay.
 func Read(tb testing.TB, root, name string) (container.Header, [][]byte) {
 	tb.Helper()
-	f, err := os.Open(Path(tb, root, name))
+	return ReadPath(tb, Path(tb, root, name))
+}
+
+// Read1390 returns the header and the decompressed blocks of one replay of
+// V1390.
+func Read1390(tb testing.TB, root, name string) (container.Header, [][]byte) {
+	tb.Helper()
+	return ReadPath(tb, Path1390(tb, root, name))
+}
+
+// ReadPath returns the header and the decompressed blocks of the replay at
+// path.
+func ReadPath(tb testing.TB, path string) (container.Header, [][]byte) {
+	tb.Helper()
+	f, err := os.Open(path)
 	if err != nil {
 		tb.Fatal(err)
 	}

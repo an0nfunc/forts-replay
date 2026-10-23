@@ -17,21 +17,25 @@ func FuzzDecoder(f *testing.F) {
 	for _, b := range fixture.AllBlocks(f, "..") {
 		f.Add(b)
 	}
+	_, blocks := fixture.Read1390(f, "..", "probe-delete.fwr")
+	f.Add(blocks[0])
 	f.Add(records(0xe1, 0xbe, 0x95))
 	f.Add(probeRecords(f))
 	f.Add(fieldRecords())
 	f.Add(bytes.Join([][]byte{fwrtest.Record(result(0, 1, 101, 7, 7), false), fwrtest.Record(screenshot(4, 2, 4, 32), false)}, nil))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		d := NewDecoder(stream.New(data), DefaultRegistry(), 1383, Options{})
-		for d.Next() {
-			if d.Message() == nil {
-				t.Fatal("nil message")
-			}
-			if d.Frame() < -1 {
-				t.Fatalf("frame %d", d.Frame())
-			}
-			if inv, ok := d.Message().(*Invalid); ok && !bytes.Equal(inv.Raw.Payload, d.Record().Payload) {
-				t.Fatalf("invalid payload %x, record %x", inv.Raw.Payload, d.Record().Payload)
+		for _, v := range []uint32{1383, 1390} {
+			d := NewDecoder(stream.New(data), DefaultRegistry(), v, Options{})
+			for d.Next() {
+				if d.Message() == nil {
+					t.Fatal("nil message")
+				}
+				if d.Frame() < -1 {
+					t.Fatalf("frame %d", d.Frame())
+				}
+				if inv, ok := d.Message().(*Invalid); ok && !bytes.Equal(inv.Raw.Payload, d.Record().Payload) {
+					t.Fatalf("invalid payload %x, record %x", inv.Raw.Payload, d.Record().Payload)
+				}
 			}
 		}
 	})
