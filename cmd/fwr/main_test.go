@@ -972,153 +972,27 @@ func cmd0(d map[string]any) map[string]any {
 	return d["timelines"].([]any)[0].(map[string]any)["commands"].([]any)[0].(map[string]any)
 }
 
-// TestDumpSteamID: dump and hex print records without SteamIDs, in decimal
-// or as little-endian bytes: a ranked result (0xbb), a 0x8d record, and a
-// record of an unknown type holding a SteamID-shaped u64, also when a record
-// is cut short and fails to decode or ends inside an ID.
+// TestDumpSteamID: dump and hex print payloads as they are, SteamIDs
+// included, and dump the ranked result's SteamID among its fields.
 func TestDumpSteamID(t *testing.T) {
-	dir := t.TempDir()
-	const (
-		cutSteamID = 1234567890123456789
-		rawSteamID = 76561202255233021 // account ID 0xfffffffd
-	)
-	le := binary.LittleEndian
-	lobby := make([]byte, 135)
-	lobby[0], lobby[17] = 0x8d, 0x8d
-	le.PutUint64(lobby[75:], testSteamID)
-	le.PutUint64(lobby[83:], opponentSteamID)
-	unknown := make([]byte, 64)
-	unknown[0], unknown[17] = 0x77, 0x77
-	le.PutUint64(unknown[41:], rawSteamID)
-	records := bytes.Join([][]byte{
-		fwrtest.Record(fwrtest.Result(0, 1, 101, cutSteamID)[:44], true),
-		fwrtest.Record(lobby, false), fwrtest.Record(lobby[:87], false), // the second cut inside its second ID
-		fwrtest.Record(unknown, false),
-	}, nil)
-	type holding struct {
-		types   []string // shown with hex
-		records int      // records with a SteamID
-	}
-	files := map[string]holding{
-		matchFile(t, dir, true): {[]string{"0xbb"}, 1},
-		write(t, dir, "records.fwr", fwrtest.File(fwrtest.Header{Version: 1383}, records)): {[]string{"0xbb", "0x8d", "0x77"}, 4},
-	}
-	blanked := map[string][2]int{"0xbb": {32, 48}, "0x8d": {75, 91}, "0x77": {41, 49}}
-	forms := steamIDForms(testSteamID, opponentSteamID, cutSteamID, rawSteamID)
-	for file, want := range files {
-		runs := [][]string{{"dump", file}, {"dump", "--json", file}}
-		for _, typ := range want.types {
-			runs = append(runs, []string{"hex", "--max-bytes", "200", "--type", typ, file})
-		}
-		var docs []map[string]any
-		for _, args := range runs {
-			code, out, errOut := runCmd(t, args...)
-			if code != 0 {
-				t.Fatalf("%v: exit %d: %s", args, code, errOut)
-			}
-			for _, f := range forms {
-				if strings.Contains(out, f) {
-					t.Errorf("%v: output holds %q", args, f)
-				}
-			}
-			switch args[1] {
-			case "--json":
-				docs = jsonLines(t, out)
-			case "--max-bytes":
-				if !strings.Contains(out, " "+args[4][2:]+" 00") {
-					t.Errorf("%v: no row in %q", args, out)
-				}
-			}
-		}
-		shown := 0
-		for _, d := range docs {
-			typ, _ := d["type"].(string)
-			r, ok := blanked[typ]
-			if !ok {
-				continue
-			}
-			shown++
-			payload, _ := d["payload"].(string)
-			p, err := hex.DecodeString(payload)
-			if err != nil || float64(len(p)) != d["length"] || len(p) > r[0] && slices.ContainsFunc(p[r[0]:min(len(p), r[1])], func(c byte) bool { return c != 0 }) {
-				t.Errorf("%s: dump --json: %v", file, d)
-			}
-		}
-		if shown != want.records {
-			t.Errorf("%s: dump --json: %d records with SteamIDs", file, shown)
+	file := matchFile(t, t.TempDir(), true)
+	le := binary.LittleEndian.AppendUint64(nil, testSteamID)
+	field := fmt.Sprintf(`"steam_id":"%d"`, uint64(testSteamID))
+	for args, want := range map[string]string{
+		"dump --json":                    hex.EncodeToString(le),
+		"dump":                           field,
+		"hex --max-bytes 64 --type 0xbb": fmt.Sprintf("% x", le),
+	} {
+		code, out, errOut := runCmd(t, append(strings.Fields(args), file)...)
+		if code != 0 || !strings.Contains(out, want) {
+			t.Errorf("%s: exit %d, %s; no %q in %q", args, code, errOut, want, out)
 		}
 	}
-}
-
-// TestDumpSteamID1390: in version 1390, dump and hex zero the SteamIDs of
-// 0x8d and 0x8f to 0x91 by position, also values whose upper half is not a
-// SteamID64's.
-func TestDumpSteamID1390(t *testing.T) {
-	const id = 1234567890123456789
-	le := binary.LittleEndian
-	rec := func(typ byte, n int, at ...int) []byte {
-		p := make([]byte, n)
-		p[0], p[17] = typ, typ
-		for i, off := range at {
-			le.PutUint64(p[off:], id-uint64(i))
-		}
-		return fwrtest.Record(p, false)
+	_, out, _ := runCmd(t, "dump", "--json", "--type", "0xbb", file)
+	docs := jsonLines(t, out)
+	if fields, _ := docs[0]["fields"].(map[string]any); fields["steam_id"] != dec(testSteamID) {
+		t.Errorf("dump --json fields %v", docs[0]["fields"])
 	}
-	records := bytes.Join([][]byte{rec(0x8d, 140, 76, 84), rec(0x8f, 36, 24), rec(0x90, 48, 24, 36), rec(0x91, 40, 24)}, nil)
-	file := write(t, t.TempDir(), "v1390.fwr", fwrtest.File(fwrtest.Header{Version: 1390}, records))
-	blanked := map[string][][2]int{"0x8d": {{76, 92}}, "0x8f": {{24, 32}}, "0x90": {{24, 32}, {36, 44}}, "0x91": {{24, 32}}}
-	runs := [][]string{{"dump", file}, {"dump", "--json", file}}
-	for typ := range blanked {
-		runs = append(runs, []string{"hex", "--max-bytes", "200", "--type", typ, file})
-	}
-	forms := steamIDForms(id, id-1)
-	var docs []map[string]any
-	for _, args := range runs {
-		code, out, errOut := runCmd(t, args...)
-		if code != 0 {
-			t.Fatalf("%v: exit %d: %s", args, code, errOut)
-		}
-		for _, f := range forms {
-			if strings.Contains(out, f) {
-				t.Errorf("%v: output holds %q", args, f)
-			}
-		}
-		if args[1] == "--json" {
-			docs = jsonLines(t, out)
-		}
-	}
-	shown := 0
-	for _, d := range docs {
-		typ, _ := d["type"].(string)
-		ranges, ok := blanked[typ]
-		if !ok {
-			continue
-		}
-		shown++
-		p, err := hex.DecodeString(d["payload"].(string))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, r := range ranges {
-			if slices.ContainsFunc(p[r[0]:r[1]], func(c byte) bool { return c != 0 }) {
-				t.Errorf("%s: bytes %d to %d not zeroed", typ, r[0], r[1]-1)
-			}
-		}
-	}
-	if shown != len(blanked) {
-		t.Errorf("dump --json: %d records with SteamIDs", shown)
-	}
-}
-
-// steamIDForms returns each SteamID in decimal and as little-endian bytes in
-// hex, plain and spaced.
-func steamIDForms(ids ...uint64) []string {
-	var forms []string
-	for _, id := range ids {
-		le := binary.LittleEndian.AppendUint64(nil, id)
-		forms = append(forms, dec(id), hex.EncodeToString(le), fmt.Sprintf("% x", le))
-	}
-	return forms
 }
 
 func TestNotAReplay(t *testing.T) {

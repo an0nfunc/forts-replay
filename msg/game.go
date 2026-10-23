@@ -21,9 +21,9 @@ const (
 type Result struct {
 	Input
 
-	Winner  uint32 `json:"winner"` // winning side
-	Team    int32  `json:"team"`   // the recording client's team
-	SteamID uint64 `json:"-"`      // the recording client's SteamID; kept out of dump output
+	Winner  uint32 `json:"winner"`          // winning side
+	Team    int32  `json:"team"`            // the recording client's team
+	SteamID uint64 `json:"steam_id,string"` // the recording client's SteamID
 }
 
 // MsgType returns TypeResult.

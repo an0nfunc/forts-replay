@@ -4,7 +4,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -219,7 +218,7 @@ func dumpDocFor(it item, version uint32) dumpDoc {
 		d.Kind = msg.KindName(m.MsgType())
 		d.Fields = m
 	}
-	d.Payload = hex.EncodeToString(shownPayload(version, it.Record.Type, it.Record.Payload))
+	d.Payload = hex.EncodeToString(it.Record.Payload)
 	return d
 }
 
@@ -256,10 +255,10 @@ func writeText(w io.Writer, it item, version uint32, withLua bool) error {
 		_, err := fmt.Fprintf(w, "%s sync\n", head)
 		return err
 	case *msg.Invalid:
-		_, err := fmt.Fprintf(w, "%s invalid: %s %s\n", head, printable(m.Err.Error()), hexPrefix(shownPayload(version, it.Record.Type, m.Raw.Payload)))
+		_, err := fmt.Fprintf(w, "%s invalid: %s %s\n", head, printable(m.Err.Error()), hexPrefix(m.Raw.Payload))
 		return err
 	case *msg.Raw:
-		_, err := fmt.Fprintf(w, "%s raw %s\n", head, hexPrefix(shownPayload(version, it.Record.Type, it.Record.Payload)))
+		_, err := fmt.Fprintf(w, "%s raw %s\n", head, hexPrefix(it.Record.Payload))
 		return err
 	default:
 		fields, err := json.Marshal(m)
@@ -340,66 +339,6 @@ func printable(s string) string {
 		i += n
 	}
 	return b.String()
-}
-
-// shownPayload returns payload p of a type t record of header version v for
-// printing, with its SteamIDs zeroed in a copy: the bytes steamIDBytes
-// names, and any 8 bytes whose upper four are 01 00 10 01, the high half of
-// every SteamID64. A cut record is zeroed as far as it reaches, since it
-// fails to decode and prints in full as Invalid.
-func shownPayload(v uint32, t byte, p []byte) []byte {
-	var out []byte
-	zero := func(from, to int) {
-		if from >= len(p) {
-			return
-		}
-		if out == nil {
-			out = bytes.Clone(p)
-		}
-		clear(out[from:min(len(p), to)])
-	}
-	for _, r := range steamIDBytes(v, t) {
-		zero(r[0], r[1])
-	}
-	high := []byte{0x01, 0x00, 0x10, 0x01}
-	for i := 4; i < len(p); {
-		j := bytes.Index(p[i:], high)
-		if j < 0 {
-			break
-		}
-		i += j
-		zero(i-4, i+4)
-		i++
-	}
-	if out == nil {
-		return p
-	}
-	return out
-}
-
-// steamIDBytes returns the byte ranges, from and to, where a type t record
-// of header version v holds SteamIDs: in 1390 those of 0x8d and 0x8f to
-// 0x91, which are not decoded (see docs/format.md); in other versions those
-// of the ranked result and 0x8d.
-func steamIDBytes(v uint32, t byte) [][2]int {
-	if v == 1390 {
-		switch t {
-		case 0x8d:
-			return [][2]int{{76, 92}}
-		case 0x8f, 0x91:
-			return [][2]int{{24, 32}}
-		case 0x90:
-			return [][2]int{{24, 32}, {36, 44}}
-		}
-		return nil
-	}
-	switch t {
-	case msg.TypeResult:
-		return [][2]int{{32, 48}}
-	case 0x8d:
-		return [][2]int{{75, 91}}
-	}
-	return nil
 }
 
 func hexPrefix(p []byte) string {
