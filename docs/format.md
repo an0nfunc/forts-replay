@@ -347,7 +347,7 @@ The Lua text follows the game's table serializer:
 - Numbers are written the way Lua prints them (`%.14g`), so `inf`, `-inf`, `nan`, `-nan(ind)` and exponents can appear.
 - Functions, userdata and C functions cannot be written as values; they appear as comment lines such as `-- key = '!!!FUNCTION!!! name line'`, `'!!!USERDATA!!!'` and `'!!!CFUNCTION!!!'`.
 
-The first snapshot after the match ends adds `gameEnded = true` and `gameWinner = <side>` to the `data` table of several sections; earlier snapshots have neither key. Snapshots come every 5 seconds, so it can be up to that late. A replay that stops before it, such as one a player quit, has no winner in its snapshots; a ranked match still has its result record (type 0xbb).
+The first snapshot after the match ends adds `gameEnded = true` and `gameWinner = <side>` to the `data` table of several sections; earlier snapshots have neither key. Snapshots come every 5 seconds, so it can be up to that late. A replay that stops before it, such as one a player quit, has no winner in its snapshots; a ranked match still has its result record (type 0xbb). The game goes on writing snapshots after the end, in version 1390 up to one with every fort emptied: no reactor, device or strut on any team. The match summary stops at the first snapshot that names the winner.
 
 ### Snapshot header
 

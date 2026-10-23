@@ -38,7 +38,7 @@
     "state": {
       "type": "object",
       "required": ["frames", "teams", "sides", "players"],
-      "description": "Series from the state snapshots, one point per decoded snapshot (every 5 seconds), header versions 1383 and 1390 only; a snapshot whose state does not decode adds no point and a warning. Every series array has as many entries as frames. Metal and energy are in the units the game shows; health, hit points and damage are in hit points. Per team, struts, strut_hp, struts_lost and nodes describe the fort's stability.",
+      "description": "Series from the state snapshots, one point per decoded snapshot (every 5 seconds) up to the first that names the winner, header versions 1383 and 1390 only; a snapshot whose state does not decode adds no point and a warning. Every series array has as many entries as frames. Metal and energy are in the units the game shows; health, hit points and damage are in hit points. Per team, struts, strut_hp, struts_lost and nodes describe the fort's stability.",
       "properties": {
         "frames": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/frame"}, "description": "Frame of each snapshot."},
         "teams": {"type": "array", "maxItems": 18, "items": {"$ref": "#/$defs/team_series"}, "description": "Teams of the team list that own a device in a snapshot, team 0 left out, by team ID."},

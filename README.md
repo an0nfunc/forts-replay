@@ -83,7 +83,7 @@ Besides the header, the players and the commands, the JSON holds:
 - `device_types`: the name of each device type ID, for the type IDs in `place` commands.
 - `parser_version`: the version `fwr version` prints.
 
-Losses and builds are worked out from the replay and can be off now and then; the schema says how. A player's damage drops to 0 when they leave the game, so use the highest value, not the last.
+The state, losses and builds end with the match, at the first snapshot that names the winner. Losses and builds are worked out from the replay and can be off now and then; the schema says how. A player's damage drops to 0 when they leave the game, so use the highest value, not the last.
 
 Later releases may add fields and command kinds to version 1, so ignore the ones you don't know. Removing or changing a field means a new schema version. `dump --json` is meant for exploring and can change at any time (`schema_version` 0).
 
