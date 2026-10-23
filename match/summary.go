@@ -201,6 +201,10 @@ type builder struct {
 	snapAt   int64
 	snapWin  lua.Value
 	snapOK   bool // the parsed snapshot has the key
+	// ended is set by the first snapshot naming side 1 or 2 the winner: st
+	// sees nothing later, since the game goes on writing snapshots, in
+	// version 1390 up to one with every fort emptied.
+	ended bool
 }
 
 func newBuilder(hdr container.Header, reg *msg.Registry, opts Options) *builder {
@@ -265,12 +269,19 @@ func (b *builder) add(rec stream.Record, frame int64, m msg.Message) {
 			b.differs, b.differsAt = true, frame
 		}
 	case *msg.Place, *msg.Upgrade, *msg.Scrap, *msg.DeleteLink, *msg.DeleteNode:
-		b.st.command(m)
+		if !b.ended {
+			b.st.command(m)
+		}
 	case *msg.Snapshot:
+		if b.ended {
+			break
+		}
 		b.st.snapshot(frame, m.Payload)
 		if !b.snapSeen && bytes.Contains(m.Payload, []byte(gameWinnerKey)) {
 			b.snapSeen, b.snapAt = true, frame
 			b.snapWin, b.snapOK = snapshotWinner(m.Payload, b.opts.Lua)
+			f, ok := b.snapWin.Float()
+			b.ended = b.snapOK && ok && (f == 1 || f == 2)
 		}
 	}
 }

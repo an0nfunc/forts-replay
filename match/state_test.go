@@ -117,6 +117,42 @@ func checkLengths(tb testing.TB, ss *StateSeries) {
 	}
 }
 
+// TestBuildStopsAtResult: the state series, losses and builds end with the
+// first snapshot naming the winner, also when a ranked result comes before
+// it; later snapshots, such as one with every fort emptied, are left out.
+func TestBuildStopsAtResult(t *testing.T) {
+	teams := []int32{0, 1, 2, 101}
+	ended := func(devs ...fwrtest.Device) fwrtest.State {
+		st := snap(teams, devs, nil, nil)
+		st.Lua = []string{"data = { gameEnded = true, gameWinner = 1, }"}
+		return st
+	}
+	snaps := []fwrtest.State{
+		snap(teams, []fwrtest.Device{dev(1, 101, "reactor"), dev(2, 101, "gun")}, nil, nil),
+		ended(dev(1, 101, "reactor"), dev(3, 101, "store")),
+		ended(),
+	}
+	ranked := solo()
+	ranked.Ranked = true
+	for _, c := range []struct {
+		v      uint32
+		setup  fwrtest.Setup
+		cmds   [][][]byte
+		result Result
+	}{
+		{1383, solo(), nil, Result{Winner: 1, Frame: 20, Source: SourceSnapshot}},
+		{1390, solo(), nil, Result{Winner: 1, Frame: 20, Source: SourceSnapshot}},
+		{1383, ranked, [][][]byte{{fwrtest.Result(0, 1, 101, 0)}}, Result{Winner: 1, Frame: 10, Source: SourceRanked}},
+	} {
+		s := buildFile(t, stateReplay(c.v, c.setup, snaps, c.cmds...))
+		lost := []DeviceEvent{{Frame: 20, Team: 101, Device: 2, TypeID: 2, Name: "gun", Weapon: true}}
+		if s.Result == nil || *s.Result != c.result || s.State == nil || !reflect.DeepEqual(s.State.Frames, []int64{10, 20}) ||
+			!reflect.DeepEqual(s.Losses, lost) || len(s.Builds) != 0 || len(s.Warnings) != 0 {
+			t.Errorf("%d %v: result %+v, state %+v, losses %+v, builds %+v, warnings %q", c.v, c.result.Source, s.Result, s.State, s.Losses, s.Builds, s.Warnings)
+		}
+	}
+}
+
 // TestStateTeams: teams map through the team list in any slot order; a
 // team that appears later is padded at the front, one missing from the
 // list or dead gets 0, teams without a device are left out, and past 18

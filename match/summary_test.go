@@ -172,7 +172,8 @@ func TestBuildFixtures(t *testing.T) {
 }
 
 // TestBuildFixtures1390: the v1.39.0 replays build without warnings or
-// invalid records, with a state point for every snapshot and the header
+// invalid records, with a state point for every snapshot up to the first
+// that names the winner, and with the header
 // fields of their v1.38.2 twins. Where a twin's scenario ran the same
 // inputs, the player's commands are the same kinds in the same order.
 func TestBuildFixtures1390(t *testing.T) {
@@ -193,13 +194,16 @@ func TestBuildFixtures1390(t *testing.T) {
 		return out
 	}
 	for _, name := range fixture.V1390 {
-		invalid, snaps := 0, 0
+		invalid, snaps, ended := 0, 0, false
 		s, err := Build(t.Context(), bytes.NewReader(fixtureFile1390(t, name)), Options{Observe: func(_ stream.Record, _ int64, m msg.Message) {
-			switch m.(type) {
+			switch m := m.(type) {
 			case *msg.Invalid:
 				invalid++
 			case *msg.Snapshot:
-				snaps++
+				if !ended {
+					snaps++
+				}
+				ended = ended || bytes.Contains(m.Payload, []byte(gameWinnerKey))
 			}
 		}})
 		if err != nil {
