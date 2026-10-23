@@ -295,7 +295,7 @@ These types stay raw (`msg.Raw`). Counts are from 103 v1.38.2 replays: 38 multip
 | 0xc9 | 33 | 4 records in 2 games | u32@24 a device, f32@28, u8@32. See 0xc8. |
 | 0xe3 | 36 | 10 records in 3 games | Sender 0 |
 
-**Version 1390**, from 13 single-player replays and one lobby game. Here the types are those of 1390. Chat (0x9d) keeps the 1383 layout. The other low types carry SteamIDs at fixed positions, and one SteamID in 0x8d belongs to no player entry, so a tool that hides SteamIDs goes by position, not by the player table.
+**Version 1390**, from 13 single-player replays and one lobby game. Here the types are those of 1390. Chat (0x9d) keeps the 1383 layout. The other low types carry SteamIDs at fixed positions, and one SteamID in 0x8d belongs to no player entry.
 
 | Type | Bytes | What is known |
 |---|---|---|
@@ -388,7 +388,7 @@ All damage counters are f32, cumulative, finite and never negative.
 
 Damage by weapon is not in the replay. The slot block's other fields are input state, and no other f32 in the payload holds a per-weapon total. Shots per weapon type can be counted from the fire commands (0xca, 0xdb), whose device IDs the device table maps to type IDs.
 
-A second copy of each player's damage sits in the snapshot's player table before the first Lua section, after a list that is non-empty only in single-player games. The parser does not read it.
+A second copy of each player's damage sits in the snapshot's player table before the first Lua section, after a list that is non-empty only in single-player games. The table also holds each player's SteamID, masked as in the header's player entries. The parser does not read it.
 
 ### Player slots
 

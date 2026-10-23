@@ -132,7 +132,7 @@ The parser is written to cope with malicious files. Sizes read from a file are c
 
 ## Player data
 
-Replays contain player names and SteamIDs. `fwr` prints the SteamIDs it decodes only in `info --json`. Text output, `dump` and `hex` show zeros instead, and `extract` writes the bytes as they are. Script call text (record type 0xe6) is printed as the game wrote it. A replay is an ordinary file that anyone can edit, including the names, SteamIDs and result. On its own it doesn't prove who played or who won, so a site that ranks players should confirm the result elsewhere, for example against Steam's ranked leaderboards.
+Replays contain player names and SteamIDs. `info --json` lists each player's SteamID, and `dump`, `hex` and `extract` show the records as they are, SteamIDs included. A replay is an ordinary file that anyone can edit, including the names, SteamIDs and result. On its own it doesn't prove who played or who won, so a site that ranks players should confirm the result elsewhere, for example against Steam's ranked leaderboards.
 
 ## Contributing
 
