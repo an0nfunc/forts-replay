@@ -391,8 +391,8 @@ func TestSummaryJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`"schema_version":1`, fmt.Sprintf(`"steam_id":"%d"`, testSteamID),
-		fmt.Sprintf(`{"id":2,"slot":1,"team":102,"side":2,"steam_id":"%d"}`, opponentSteamID),
+		`"schema_version":1`, fmt.Sprintf(`"steam_id":"%d"`, uint64(testSteamID)),
+		fmt.Sprintf(`{"id":2,"slot":1,"team":102,"side":2,"steam_id":"%d"}`, uint64(opponentSteamID)),
 		`"commanders":[{"side":1,"name":"commander-test-alpha"},{"side":2,"name":"commander-test-beta"}]`,
 		`"result":{"winner":1,"frame":4,"source":"ranked"}`,
 		`{"player":1,"counts":{"ability":1},"commands":[{"frame":4,"kind":"ability","fields":{"player":1,"team":0}}]}`,
