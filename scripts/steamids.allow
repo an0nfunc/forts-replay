@@ -1,0 +1,4 @@
+# SteamID64s that tracked files may hold, one per line, each followed by
+# what it is. Both are synthetic, with account IDs Steam has not assigned.
+76561202255233023 testSteamID (0x01100001ffffffff), the recorder in synthetic replays
+76561202255233022 opponentSteamID, the second player in synthetic replays
