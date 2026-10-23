@@ -16,7 +16,7 @@ Dependencies point downward only:
 - `match`: the match summary (`Build`): players, commanders, result, per-player command timelines, action counts, build orders, and the state series, losses, builds and device types from snapshots
 - `cmd/fwr`: the CLI
 - `schema/`: the JSON Schema of `fwr info --json`
-- `internal/fwrtest` builds synthetic replays; `internal/corpus` locates the corpus submodule; `internal/fixture` loads the v1.38.2 and v1.39.0 replays tests name
+- `internal/fwrtest` builds synthetic replays; `internal/corpus` locates the corpus submodule; `internal/fixture` loads the v1.38.2 and v1.39.0 replays tests name; `internal/repocheck` checks the tracked files for SteamIDs
 - `testdata/corpus/`: the submodule [forts-replay-corpus](https://github.com/an0nfunc/forts-replay-corpus), the test replays by game version; `testdata/corpus.golden` pins a digest of each
 - `testdata/probes/`: how to record probe replays, and a note per probe
 
@@ -26,7 +26,6 @@ Dependencies point downward only:
     go vet ./...
     go test -race ./...
     golangci-lint run
-    scripts/check-steamids.sh                    # SteamID64s in tracked files; scripts/steamids.allow lists the permitted ones
     go test ./cmd/fwr -run TestGolden -update    # regenerate golden output, then review the diff
     go test ./match -run TestCorpusGolden -update    # after a corpus bump or a decoding change, then review the diff
     go test ./<pkg> -run '^$' -fuzz '^Fuzz<Name>$' -fuzztime 30s -fuzzminimizetime 0
@@ -40,7 +39,7 @@ Dependencies point downward only:
 - `fwr info --json` carries `schema_version` 1, described by `schema/info-v1.json`. Adding a field or a command kind, to the output and the schema together, keeps the version; removing one or changing its meaning bumps it. `TestInfoSchema` checks the output against a closed copy of the schema, with the kind list closed too. `dump --json` carries 0 (unstable).
 - `docs/format.md` records format knowledge only: no disassembly, game code or addresses. The repository ships no EarthWork game data. The corpus replays' snapshots hold the game's AI script tables, so goldens and tests print synthetic snapshots (`fwrtest.Snapshot`, `fwrtest.State`), never the replays' Lua text.
 - Test replays live only in the corpus repository; tests skip without the submodule and fail without it in CI (`FWR_REQUIRE_CORPUS`). A corpus change lands here as a submodule bump, which Renovate proposes, to a commit on the corpus's main branch; `TestCorpusGolden` fails on it until `testdata/corpus.golden`, which holds no player names or SteamIDs, is regenerated on that branch and its diff reviewed. Unused bytes, such as those after a name's NUL, hold leftover game memory: check a replay's strings before adding it to the corpus.
-- Replays hold player names, per-side commander save-names, and every player's SteamID (the header's player entries; ranked result records (0xbb) and some 0x8d records also hold them in clear, and in version 1390 0x8f to 0x91 too; snapshots' player tables hold them masked as the header does). `info --json` reports the SteamIDs the parser decodes; `dump`, `hex` and `extract` show the bytes as they are. Files in this repository, the corpus submodule aside, hold @an0nfunc's own name and synthetic values only; `scripts/check-steamids.sh`, a step of CI's lint job, fails on any SteamID64 that `scripts/steamids.allow` does not list.
+- Replays hold player names, per-side commander save-names, and every player's SteamID (the header's player entries; ranked result records (0xbb) and some 0x8d records also hold them in clear, and in version 1390 0x8f to 0x91 too; snapshots' player tables hold them masked as the header does). `info --json` reports the SteamIDs the parser decodes; `dump`, `hex` and `extract` show the bytes as they are. Files in this repository, the corpus submodule aside, hold @an0nfunc's own name and synthetic values only. `go test ./internal/repocheck` fails on an individual SteamID64 (upper 32 bits 0x01100001) in a tracked file, binary or text, that `internal/repocheck/steamids.allow` does not list, in the raw and printed forms `repocheck.SteamIDs` names. It cannot see a SteamID masked as the header's player entries and the snapshots' player tables hold it, or one in another encoding, such as base64 or an account ID alone.
 - Third-party dependencies: `github.com/ulikunitz/xz`, and in tests only `github.com/santhosh-tekuri/jsonschema/v6` (depguard keeps it there). Ask before adding another.
 - Every `.go` file starts with `// SPDX-License-Identifier: AGPL-3.0-or-later`.
 - Commits: short conventional subject (`feat(container): ...`), a body only when it adds something.
