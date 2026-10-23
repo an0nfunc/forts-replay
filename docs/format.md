@@ -303,7 +303,7 @@ These types stay raw (`msg.Raw`). Counts are from 103 v1.38.2 replays: 38 multip
 | 0x8f | 36 | A SteamID at 24 and a small number at 32. The 1383 0x8f (32 bytes) has the player ID at 20 and 24 and the small number at 28. |
 | 0x90 | 48 | SteamIDs at 24 and 36 |
 | 0x91 | 40 | A SteamID at 24 |
-| 0xcc | 28 | The 1383 0xc8: u32@24 a device. Written 2 frames after a water cannon's fire command (0xce), naming the water cannon. |
+| 0xcc | 28 | The 1383 0xc8: u32@24 a device. Written 2 or 4 frames after a water cannon's fire command (0xce), naming the water cannon. |
 
 ## Ranked result (type 0xbb)
 
