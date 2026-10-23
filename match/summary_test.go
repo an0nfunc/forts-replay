@@ -25,8 +25,8 @@ import (
 // Synthetic SteamIDs with account IDs 0xffffffff and 0xfffffffe, which
 // Steam has not assigned.
 const (
-	testSteamID     = 76561202255233023 // the recorder's
-	opponentSteamID = 76561202255233022
+	testSteamID     uint64 = 76561202255233023 // the recorder's
+	opponentSteamID uint64 = 76561202255233022
 )
 
 func buildFile(t *testing.T, data []byte) *Summary {
@@ -173,9 +173,9 @@ func TestBuildFixtures(t *testing.T) {
 
 // TestBuildFixtures1390: the v1.39.0 replays build without warnings or
 // invalid records, with a state point for every snapshot up to the first
-// that names the winner, and with the header
-// fields of their v1.38.2 twins. Where a twin's scenario ran the same
-// inputs, the player's commands are the same kinds in the same order.
+// that names the winner, and with the header fields of their v1.38.2
+// twins. Where a twin's scenario ran the same inputs, the player's
+// commands are the same kinds in the same order.
 func TestBuildFixtures1390(t *testing.T) {
 	sameInputs := map[string]bool{
 		"devices.fwr": true, "economy-storage.fwr": true, "probe-delete.fwr": true, "probe-node.fwr": true,
@@ -395,8 +395,8 @@ func TestSummaryJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`"schema_version":1`, fmt.Sprintf(`"steam_id":"%d"`, uint64(testSteamID)),
-		fmt.Sprintf(`{"id":2,"slot":1,"team":102,"side":2,"steam_id":"%d"}`, uint64(opponentSteamID)),
+		`"schema_version":1`, fmt.Sprintf(`"steam_id":"%d"`, testSteamID),
+		fmt.Sprintf(`{"id":2,"slot":1,"team":102,"side":2,"steam_id":"%d"}`, opponentSteamID),
 		`"commanders":[{"side":1,"name":"commander-test-alpha"},{"side":2,"name":"commander-test-beta"}]`,
 		`"result":{"winner":1,"frame":4,"source":"ranked"}`,
 		`{"player":1,"counts":{"ability":1},"commands":[{"frame":4,"kind":"ability","fields":{"player":1,"team":0}}]}`,

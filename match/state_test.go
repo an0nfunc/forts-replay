@@ -134,6 +134,7 @@ func TestBuildStopsAtResult(t *testing.T) {
 	}
 	ranked := solo()
 	ranked.Ranked = true
+	lost := []DeviceEvent{{Frame: 20, Team: 101, Device: 2, TypeID: 2, Name: "gun", Weapon: true}}
 	for _, c := range []struct {
 		v      uint32
 		setup  fwrtest.Setup
@@ -145,7 +146,6 @@ func TestBuildStopsAtResult(t *testing.T) {
 		{1383, ranked, [][][]byte{{fwrtest.Result(0, 1, 101, 0)}}, Result{Winner: 1, Frame: 10, Source: SourceRanked}},
 	} {
 		s := buildFile(t, stateReplay(c.v, c.setup, snaps, c.cmds...))
-		lost := []DeviceEvent{{Frame: 20, Team: 101, Device: 2, TypeID: 2, Name: "gun", Weapon: true}}
 		if s.Result == nil || *s.Result != c.result || s.State == nil || !reflect.DeepEqual(s.State.Frames, []int64{10, 20}) ||
 			!reflect.DeepEqual(s.Losses, lost) || len(s.Builds) != 0 || len(s.Warnings) != 0 {
 			t.Errorf("%d %v: result %+v, state %+v, losses %+v, builds %+v, warnings %q", c.v, c.result.Source, s.Result, s.State, s.Losses, s.Builds, s.Warnings)
