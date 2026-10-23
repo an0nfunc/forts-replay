@@ -3,6 +3,8 @@
 package match
 
 import (
+	"bytes"
+	"encoding/binary"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,11 +16,11 @@ import (
 )
 
 // TestCorpus builds every replay under $FWR_CORPUS, a directory of replays
-// outside the repository; CI does not set it. Replays of header version 1383
-// must build without warnings or invalid records; in those with more than
-// one player entry, every entry must hold a SteamID; ranked ones must carry
-// the game's result and the recorder's SteamID. Every snapshot state must
-// decode.
+// outside the repository; CI does not set it. Replays of header versions
+// 1383 and 1390 must build without warnings or invalid records; in those
+// with more than one player entry, every entry must hold a SteamID; ranked
+// ones must carry the game's result and the recorder's SteamID. Every
+// snapshot state must decode.
 func TestCorpus(t *testing.T) {
 	root := os.Getenv("FWR_CORPUS")
 	if root == "" {
@@ -32,19 +34,22 @@ func TestCorpus(t *testing.T) {
 			return err
 		}
 		rel, _ := filepath.Rel(root, path)
-		f, err := os.Open(path) //nolint:gosec // G122: a local corpus the developer owns
+		data, err := os.ReadFile(path) //nolint:gosec // G122: a local corpus the developer owns
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		var version uint32
+		if len(data) >= 4 {
+			version = binary.LittleEndian.Uint32(data)
+		}
 		invalid, fileSnaps, fileFailed := 0, 0, 0
-		s, err := Build(t.Context(), f, Options{Observe: func(_ stream.Record, _ int64, m msg.Message) {
+		s, err := Build(t.Context(), bytes.NewReader(data), Options{Observe: func(_ stream.Record, _ int64, m msg.Message) {
 			switch m := m.(type) {
 			case *msg.Invalid:
 				invalid++
 			case *msg.Snapshot:
 				fileSnaps++
-				if _, decErr := decodeState(m.Payload); decErr != nil {
+				if _, decErr := decodeState(version, m.Payload); decErr != nil {
 					fileFailed++
 				}
 			}
@@ -53,7 +58,7 @@ func TestCorpus(t *testing.T) {
 		case err != nil:
 			t.Errorf("%s: %v", rel, err)
 			return nil
-		case s.FormatVersion != 1383:
+		case s.FormatVersion != 1383 && s.FormatVersion != 1390:
 			return nil
 		case fileFailed > 0:
 			t.Errorf("%s: %d of %d snapshot states do not decode", rel, fileFailed, fileSnaps)

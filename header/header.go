@@ -24,6 +24,9 @@ const (
 	rankedOffset  = 0x33a
 	rankedLen     = 0x80 // bytes a ranked header has after the ranked flag
 	optionsOffset = 0x570
+	dateOffset    = 25   // version 1390
+	dateLen       = 15   // YYYYMMDD_HHMMSS
+	dateShift     = 0x16 // bytes the date and 3 more add before the ranked flag
 	maxOptions    = 64
 	maxString     = 1024
 	maxPlayers    = 16
@@ -37,9 +40,10 @@ const (
 	imageMarker  = 0x3c3c3c3c
 )
 
-// Header holds the decoded fields. Apart from the ranked flag and the
-// commanders, the bytes before the options are not decoded yet.
+// Header holds the decoded fields. Apart from the date, the ranked flag and
+// the commanders, the bytes before the options are not decoded yet.
 type Header struct {
+	Date         string   // version 1390: the recording's date and time, YYYYMMDD_HHMMSS, as in the default file name
 	Ranked       bool     // a ranked match: 128 more bytes before the options
 	Commanders   []string // side 1's and side 2's save-names, "" for none; nil when they do not decode
 	Options      []string // game options, e.g. "repair_station", "dlc3"
@@ -69,23 +73,34 @@ type AI struct {
 	Value  uint32 // non-zero for a fort the AI plays; meaning unknown
 }
 
-// Parse decodes raw, the whole header including its fixed fields, for the
-// given header version. When only the fields after MapSPR are corrupt, it
-// returns the header up to MapSPR, without the later fields, together with
-// the error.
+// Parse decodes raw, the whole header including its fixed fields, for
+// header version 1383 or 1390. Version 1390 adds the date at offset 25, and
+// every fixed offset from the ranked flag on moves by 0x16. When only the
+// fields after MapSPR are corrupt, it returns the header up to MapSPR,
+// without the later fields, together with the error.
 func Parse(version uint32, raw []byte) (*Header, error) {
-	if version != 1383 {
+	var h Header
+	r := &reader{b: raw}
+	shift := 0
+	switch version {
+	case 1383:
+	case 1390:
+		r.off = dateOffset
+		if h.Date = r.str(); r.err == nil && len(h.Date) != dateLen {
+			r.failf("date of %d bytes at offset %#x", len(h.Date), dateOffset)
+		}
+		shift = dateShift
+	default:
 		return nil, fmt.Errorf("%w: version %d", ErrVersion, version)
 	}
-	r := &reader{b: raw, off: rankedOffset}
+	r.off = rankedOffset + shift
 	ranked := r.u8()
 	if ranked > 1 {
-		r.failf("ranked flag %d at offset %#x", ranked, rankedOffset)
+		r.failf("ranked flag %d at offset %#x", ranked, rankedOffset+shift)
 	}
-	h := Header{Ranked: ranked == 1}
-	shift := 0
+	h.Ranked = ranked == 1
 	if h.Ranked {
-		shift = rankedLen
+		shift += rankedLen
 	}
 	r.off = optionsOffset + shift
 	start := r.off

@@ -43,9 +43,9 @@ func (b *body) cstr(lo, hi int) string {
 	return string(text)
 }
 
-// registerScripts adds the script call decoder for v.
-func registerScripts(r *Registry, v Versions) {
-	r.Register(TypeScriptCall, v, inputDecoder(344, TypeScriptCall, func(in Input, b *body) Message {
+// registerScripts adds the script call decoder for version v.
+func registerScripts(r *Registry, v uint32) {
+	register(r, v, TypeScriptCall, inputDecoder(344, func(in Input, b *body) Message {
 		return &ScriptCall{Input: in, Name: b.cstr(24, 152), Args: b.cstr(152, 344)}
 	}))
 }

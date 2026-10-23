@@ -61,7 +61,8 @@ func firstAt(ms []framed, frame int64, typ byte) Message {
 	return nil
 }
 
-// TestLayouts pins each typed record's length, byte 17 and version range.
+// TestLayouts pins each typed record's length, byte 17 and version range,
+// in version 1383 and at its version 1390 type.
 func TestLayouts(t *testing.T) {
 	layouts := []struct {
 		t   byte
@@ -98,47 +99,61 @@ func TestLayouts(t *testing.T) {
 		{TypeScriptCall, 344, TypeScriptCall, TypeScriptCall},
 	}
 	r := DefaultRegistry()
-	for _, l := range layouts {
-		for _, v := range []uint32{1382, 1384} {
-			if r.Lookup(l.t, v) != nil {
-				t.Errorf("%#02x: decoder at version %d", l.t, v)
+	for _, v := range []uint32{1383, 1390} {
+		for _, l := range layouts {
+			rt, ok := RecordType(l.t, v)
+			if !ok {
+				continue // the ranked result in 1390, see TestResult
 			}
+			checkLayout(t, r, v, rt, l.t, l.n, rt-(l.t-l.b17), rt-(l.t-l.alt))
 		}
-		dec := r.Lookup(l.t, 1383)
-		if dec == nil {
-			t.Fatalf("%#02x: no decoder", l.t)
+	}
+}
+
+// checkLayout checks the decoder of record type rt in version v: it decodes
+// records of n bytes with byte 17 b17 or alt to a message of type typ, and
+// only those.
+func checkLayout(t *testing.T, r *Registry, v uint32, rt, typ byte, n int, b17, alt byte) {
+	t.Helper()
+	for _, other := range []uint32{v - 1, v + 1} {
+		if r.Lookup(rt, other) != nil {
+			t.Errorf("%d %#02x: decoder at version %d", v, rt, other)
 		}
-		m, err := dec(inputRec(l.t, l.n, l.b17))
-		if err != nil || m.MsgType() != l.t {
-			t.Errorf("%#02x: %#v, %v", l.t, m, err)
+	}
+	dec := r.Lookup(rt, v)
+	if dec == nil {
+		t.Fatalf("%d %#02x: no decoder", v, rt)
+	}
+	m, err := dec(inputRec(rt, n, b17))
+	if err != nil || m.MsgType() != typ {
+		t.Errorf("%d %#02x: %#v, %v", v, rt, m, err)
+		return
+	}
+	if s, ok := m.(interface{ Sender() uint32 }); !ok || s.Sender() != 1 {
+		t.Errorf("%d %#02x: sender of %#v", v, rt, m)
+	}
+	for _, l := range []int{n - 1, n + 1} {
+		if _, err := dec(inputRec(rt, l, b17)); err == nil {
+			t.Errorf("%d %#02x: length %d decodes", v, rt, l)
+		}
+	}
+	for i := range 256 {
+		c := byte(i)
+		want := c == b17 || c == alt
+		if _, err := dec(inputRec(rt, n, c)); (err == nil) != want {
+			t.Errorf("%d %#02x: byte 17 %#02x: err %v", v, rt, c, err)
+		}
+	}
+	// dump writes every typed message as JSON, which has no NaN.
+	for off := 18; off+4 <= n; off++ {
+		p := inputRec(rt, n, b17)
+		binary.LittleEndian.PutUint32(p[off:], 0x7fc00000)
+		got, decErr := dec(p)
+		if decErr != nil {
 			continue
 		}
-		if s, ok := m.(interface{ Sender() uint32 }); !ok || s.Sender() != 1 {
-			t.Errorf("%#02x: sender of %#v", l.t, m)
-		}
-		for _, n := range []int{l.n - 1, l.n + 1} {
-			if _, err := dec(inputRec(l.t, n, l.b17)); err == nil {
-				t.Errorf("%#02x: length %d decodes", l.t, n)
-			}
-		}
-		for v := range 256 {
-			b17 := byte(v)
-			want := b17 == l.b17 || b17 == l.alt
-			if _, err := dec(inputRec(l.t, l.n, b17)); (err == nil) != want {
-				t.Errorf("%#02x: byte 17 %#02x: err %v", l.t, b17, err)
-			}
-		}
-		// dump writes every typed message as JSON, which has no NaN.
-		for off := 18; off+4 <= l.n; off++ {
-			p := inputRec(l.t, l.n, l.b17)
-			binary.LittleEndian.PutUint32(p[off:], 0x7fc00000)
-			got, decErr := dec(p)
-			if decErr != nil {
-				continue
-			}
-			if _, jsonErr := json.Marshal(got); jsonErr != nil {
-				t.Errorf("%#02x: NaN at offset %d decodes: %v", l.t, off, jsonErr)
-			}
+		if _, jsonErr := json.Marshal(got); jsonErr != nil {
+			t.Errorf("%d %#02x: NaN at offset %d decodes: %v", v, rt, off, jsonErr)
 		}
 	}
 }

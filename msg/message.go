@@ -4,7 +4,9 @@
 // decoders keyed by message type and game version.
 package msg
 
-// Message is a decoded record.
+// Message is a decoded record. A typed message's MsgType is its type in
+// header version 1383, whatever the replay's version (see RecordType); Raw
+// and Invalid return the record's own type.
 type Message interface {
 	MsgType() byte
 }

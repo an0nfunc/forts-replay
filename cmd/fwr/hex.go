@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/an0nfunc/forts-replay/container"
 )
 
 func runHex(ctx context.Context, args []string, stdout, stderr io.Writer) int {
@@ -30,15 +32,20 @@ func runHex(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		data  []byte
 	}
 	var rows []row
+	var version uint32
+	setVersion := func(h container.Header) error {
+		version = h.Version
+		return nil
+	}
 	collect := func(it item) error {
 		if uint64(it.Record.Type) == t {
-			p := shownPayload(it.Record.Type, it.Record.Payload)
+			p := shownPayload(version, it.Record.Type, it.Record.Payload)
 			// Clone, so a matching row does not keep its whole block alive.
 			rows = append(rows, row{fmt.Sprintf("b%d+0x%05x", it.Block, it.Record.Offset), bytes.Clone(p[:min(len(p), *maxBytes)])})
 		}
 		return nil
 	}
-	res, err := walk(ctx, fs.Arg(0), handlers{msg: collect})
+	res, err := walk(ctx, fs.Arg(0), handlers{header: setVersion, msg: collect})
 	if err != nil {
 		fmt.Fprintf(stderr, "fwr hex: %v\n", err)
 		return exitFail

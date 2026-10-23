@@ -41,6 +41,24 @@ func TestTickSync(t *testing.T) {
 	}
 }
 
+// TestTickSync1390: ticks and syncs are 0xc2 and 0xc4 in version 1390.
+func TestTickSync1390(t *testing.T) {
+	data := bytes.Join([][]byte{fwrtest.Record(fixed(0xc2, 28, 40), false), fwrtest.Record(fixed(0xc4, 164, 38), false)}, nil)
+	d := NewDecoder(stream.New(data), DefaultRegistry(), 1390, Options{Strict: true})
+	if !d.Next() {
+		t.Fatal(d.Err())
+	}
+	if tk, ok := d.Message().(*Tick); !ok || tk.Target != 40 || tk.MsgType() != TypeTick {
+		t.Errorf("tick %#v", d.Message())
+	}
+	if !d.Next() {
+		t.Fatal(d.Err())
+	}
+	if s, ok := d.Message().(*Sync); !ok || s.Frame != 38 || s.MsgType() != TypeSync || d.Frame() != 38 {
+		t.Errorf("sync %#v at frame %d", d.Message(), d.Frame())
+	}
+}
+
 func TestTickSyncInvalid(t *testing.T) {
 	retype := func(p []byte) []byte { p[17] = 0; return p }
 	cases := map[string][]byte{

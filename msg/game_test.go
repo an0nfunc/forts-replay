@@ -57,6 +57,15 @@ func TestResult(t *testing.T) {
 	if DefaultRegistry().Lookup(TypeResult, 1384) != nil {
 		t.Error("decoder at version 1384")
 	}
+	// The 1390 type is not known: no candidate decodes the 1383 layout.
+	for _, typ := range []byte{TypeResult, 0xbe, 0xbf} {
+		if fn := DefaultRegistry().Lookup(typ, 1390); fn != nil {
+			p := result(0, 2, 102, id, id)
+			p[0], p[17] = typ, typ
+			m, err := fn(p)
+			t.Errorf("version 1390, type %#02x: %#v, %v", typ, m, err)
+		}
+	}
 }
 
 func TestScreenshot(t *testing.T) {
@@ -92,5 +101,25 @@ func TestScreenshot(t *testing.T) {
 		if m, err := dec(p); err == nil {
 			t.Errorf("%s: decodes to %#v", name, m)
 		}
+	}
+}
+
+// TestScreenshot1390: type 0xe6 in version 1390, with the BGRA pixel
+// format the game writes there.
+func TestScreenshot1390(t *testing.T) {
+	dec := DefaultRegistry().Lookup(0xe6, 1390)
+	if dec == nil {
+		t.Fatal("no decoder")
+	}
+	p := screenshot(4, 2, 4, 32)
+	p[0], p[17] = 0xe6, 0xe6
+	binary.LittleEndian.PutUint32(p[36:], 0x80e1)
+	m, err := dec(p)
+	if err != nil || !reflect.DeepEqual(m, &Screenshot{Width: 4, Height: 2, Depth: 4, Format: 0x80e1, Frame: 101, Flag: true}) || m.MsgType() != TypeScreenshot {
+		t.Errorf("%#v, %v", m, err)
+	}
+	p[17] = TypeScreenshot
+	if m, err := dec(p); err == nil {
+		t.Errorf("byte 17 %#02x: decodes to %#v", p[17], m)
 	}
 }

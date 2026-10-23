@@ -104,7 +104,7 @@ const (
 // keeps only aggregates, the latest decoded snapshot's devices and struts,
 // and the build progress of its unfinished devices, never whole states.
 type stateBuilder struct {
-	decode    bool // the version is state.Version
+	decode    bool // state decodes the version's snapshots
 	version   uint32
 	maxStates int
 	maxLosses int
@@ -232,7 +232,7 @@ func newWindow() window {
 
 func newStateBuilder(version uint32, h *header.Header, lim Limits, warnf func(format string, args ...any)) *stateBuilder {
 	sb := &stateBuilder{
-		decode: version == state.Version, version: version, warnf: warnf,
+		decode: state.Decodes(version), version: version, warnf: warnf,
 		teams: map[int32]*teamCols{}, sides: [2]SideSeries{{Side: 1}, {Side: 2}},
 		older: newWindow(), recent: newWindow(), marks: map[uint32]bool{},
 		building: map[uint32]*building{}, types: map[uint16]string{},
@@ -371,7 +371,7 @@ func (sb *stateBuilder) snapshot(frame int64, payload []byte) {
 		}
 		return
 	}
-	st, err := decodeState(payload)
+	st, err := decodeState(sb.version, payload)
 	if err != nil {
 		if sb.failed == 0 {
 			sb.failedAt, sb.failedErr = frame, err
@@ -391,12 +391,12 @@ func (sb *stateBuilder) snapshot(frame int64, payload []byte) {
 	sb.prev, sb.older, sb.recent, sb.newIDs = cur, sb.recent, newWindow(), 0
 }
 
-func decodeState(payload []byte) (*state.State, error) {
+func decodeState(version uint32, payload []byte) (*state.State, error) {
 	end, ok := snapshot.End(payload)
 	if !ok {
 		return nil, fmt.Errorf("%w: no Lua section", state.ErrCorrupt)
 	}
-	return state.Parse(payload, end)
+	return state.ParseVersion(version, payload, end)
 }
 
 // index indexes st; prev is the decoded snapshot before it, or nil.

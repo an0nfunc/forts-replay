@@ -35,10 +35,10 @@ func scale(out uint32) byte {
 }
 
 // commanders decodes side 1's and side 2's commander names from raw, a
-// header whose fields up to the options are in bounds; shift is 0x80 in a
-// ranked header. It returns nil when a block has no NUL or a name is not
-// printable UTF-8. The stream runs on across blocks, so a damaged side 1
-// leaves side 2 undecodable too.
+// header whose fields up to the options are in bounds; shift is what the
+// header version and a ranked match add to the 1383 offsets. It returns nil
+// when a block has no NUL or a name is not printable UTF-8. The stream runs
+// on across blocks, so a damaged side 1 leaves side 2 undecodable too.
 func commanders(raw []byte, shift int) []string {
 	m := mask{s: binary.LittleEndian.Uint32(raw[drawsOffset+shift+4*seedDraw:]) ^ seedXOR}
 	names := make([]string, 2)

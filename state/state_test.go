@@ -132,6 +132,58 @@ func TestParseSynthetic(t *testing.T) {
 	}
 }
 
+// TestParse1390: a version 1390 snapshot, whose weapons have 4 more bytes
+// before their counts, decodes with ParseVersion(1390), and neither layout
+// decodes as the other.
+func TestParse1390(t *testing.T) {
+	s := synthetic()
+	s.Version = 1390
+	p := s.Payload()
+	end, _ := snapshot.End(p)
+	if got, err := ParseVersion(1390, p, end); err != nil || !reflect.DeepEqual(got, syntheticWant()) {
+		t.Errorf("got  %+v, %v\nwant %+v", got, err, syntheticWant())
+	}
+	if st, err := ParseVersion(1383, p, end); !errors.Is(err, ErrCorrupt) || st != nil {
+		t.Errorf("as 1383: %+v, %v", st, err)
+	}
+	old := synthetic().Payload()
+	oldEnd, _ := snapshot.End(old)
+	if st, err := ParseVersion(1390, old, oldEnd); !errors.Is(err, ErrCorrupt) || st != nil {
+		t.Errorf("1383 payload as 1390: %+v, %v", st, err)
+	}
+	if !Decodes(1383) || !Decodes(1390) {
+		t.Error("1383 or 1390 not decoded")
+	}
+	for _, v := range []uint32{0, 1331, 1382, 1384, 1389, 1391} {
+		if st, err := ParseVersion(v, old, oldEnd); Decodes(v) || !errors.Is(err, ErrVersion) || st != nil {
+			t.Errorf("version %d: decodes %v, %+v, %v", v, Decodes(v), st, err)
+		}
+	}
+}
+
+// TestParseCorpus1390: every snapshot of the v1.39.0 replays decodes as
+// version 1390; as 1383, every one holding a weapon fails.
+func TestParseCorpus1390(t *testing.T) {
+	for _, name := range fixture.V1390 {
+		for frame, p := range snapshotsAt(t, fixture.Path1390(t, "..", name)) {
+			end, ok := snapshot.End(p)
+			if !ok {
+				t.Fatalf("%s frame %d: no Lua section", name, frame)
+			}
+			st, err := ParseVersion(1390, p, end)
+			if err != nil {
+				t.Errorf("%s frame %d: %v", name, frame, err)
+				continue
+			}
+			if slices.ContainsFunc(st.Devices, func(d Device) bool { return d.Weapon }) {
+				if _, err := Parse(p, end); err == nil {
+					t.Errorf("%s frame %d: decodes as 1383", name, frame)
+				}
+			}
+		}
+	}
+}
+
 // TestGap checks that the gap is the largest even length at which the
 // tables parse, also when the 0 and 1 run reaches into the device count.
 func TestGap(t *testing.T) {
@@ -346,7 +398,13 @@ func links(nodes, per int) []fwrtest.Link {
 // the last sync before each.
 func snapshots(tb testing.TB, name string) map[int64][]byte {
 	tb.Helper()
-	hdr, blocks := fixture.Read(tb, "..", name)
+	return snapshotsAt(tb, fixture.Path(tb, "..", name))
+}
+
+// snapshotsAt returns the snapshot payloads of the replay at path by frame.
+func snapshotsAt(tb testing.TB, path string) map[int64][]byte {
+	tb.Helper()
+	hdr, blocks := fixture.ReadPath(tb, path)
 	out := map[int64][]byte{}
 	var dec *msg.Decoder
 	for _, b := range blocks {

@@ -83,8 +83,8 @@ func put32(b *bytes.Buffer, v uint32) {
 	b.Write(binary.LittleEndian.AppendUint32(nil, v))
 }
 
-// Setup holds the header fields of version 1383 after the fixed ones.
-// Extra lays them out as Header.Extra.
+// Setup holds the header fields after the fixed ones. Extra lays them out
+// as Header.Extra for version 1383, Extra1390 for version 1390.
 type Setup struct {
 	Ranked       bool
 	Options      []string
@@ -96,6 +96,7 @@ type Setup struct {
 	Images       int       // embedded images, each with a small payload
 	CustomTeams  bool      // team records with custom names
 	Commanders   [2]string // save-names of side 1's and side 2's commanders; "" for none
+	Date         string    // version 1390: the date str8 at offset 25
 }
 
 // Player is one entry of the header's player table.
@@ -193,6 +194,38 @@ func (s Setup) Extra() []byte {
 	}
 	str8(&b, "ui/textures/hud/observer/badges/forts.dds")
 	return b.Bytes()
+}
+
+// Extra1390 returns the header bytes from offset 17 to the first block in
+// version 1390: Extra's with the date at offset 25 and 0x16 more bytes
+// before the ranked flag.
+func (s Setup) Extra1390() []byte {
+	var b bytes.Buffer
+	b.Write(make([]byte, 25-17))
+	str8(&b, s.Date)
+	b.Write(make([]byte, 0x350-25-4-len(s.Date)))
+	b.Write(s.Extra()[0x33a-17:])
+	return b.Bytes()
+}
+
+// In1390 returns a copy of payload p, a record as header version 1383
+// writes it, with the type version 1390 gives it: input records and chat
+// (0x92 to 0x9a) move by 3 and the types from 0xbe to 0xe6 by 4, at offset
+// 17 too except in a snapshot (0xe1). Other types stay.
+func In1390(p []byte) []byte {
+	q := bytes.Clone(p)
+	var d byte
+	switch t := p[0]; {
+	case t >= 0x92 && t <= 0x9a:
+		d = 3
+	case t >= 0xbe && t <= 0xe6:
+		d = 4
+	}
+	q[0] += d
+	if p[0] != 0xe1 && len(q) > 17 {
+		q[17] += d
+	}
+	return q
 }
 
 // Header bytes 0x33b to 0x570, after the ranked flag; header.Parse holds
@@ -354,8 +387,10 @@ func putF32(b []byte, off int, v float32) {
 }
 
 // State is the content of a snapshot payload with its binary state, as
-// Payload lays it out.
+// Payload lays it out for header version 1383, or for 1390 when Version is
+// 1390.
 type State struct {
+	Version              uint32
 	NextNode, NextDevice uint32
 	Lua                  []string // section texts, each starting with "data = "
 	Teams                []Team   // team-list slots in order; the rest are unused
@@ -442,6 +477,9 @@ func (s State) Payload() []byte {
 	le := binary.LittleEndian
 	p := make([]byte, stHeaderEnd)
 	p[0] = 0xe1
+	if s.Version == 1390 {
+		p[0] = 0xe5
+	}
 	le.PutUint32(p[stNextNode:], s.NextNode)
 	le.PutUint32(p[stNextNode+4:], s.NextDevice)
 	for i := range 19 {
@@ -523,7 +561,11 @@ func (s State) rest(p []byte) []byte {
 		putF32(body, 44, d.Health)
 		p = append(p, body...)
 		if d.Weapon {
-			w := make([]byte, 376-168)
+			n := 376 - 168
+			if s.Version == 1390 {
+				n += 4 // a 4-byte field at +184
+			}
+			w := make([]byte, n)
 			copy(w, []byte{0xf1, 0xf1, 0xf1, 0xf1})
 			p = append(p, w...)
 			p = le.AppendUint32(p, uint32(d.Beams))

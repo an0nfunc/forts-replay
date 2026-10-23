@@ -110,20 +110,18 @@ func (b *body) flag(off int) bool {
 	return v == 1
 }
 
-// inputDecoder returns the decoder for an input record of n bytes with b17
-// at offset 17. read builds the message from the record's fields.
-func inputDecoder(n int, b17 byte, read func(in Input, b *body) Message) DecodeFunc {
-	return inputDecoderAlt(n, b17, b17, read)
+// inputDecoder returns the decoder for an input record of n bytes whose
+// byte 17 repeats its type. read builds the message from the record's
+// fields.
+func inputDecoder(n int, read func(in Input, b *body) Message) DecodeFunc {
+	return inputDecoderAlt(n, 0, read)
 }
 
-// inputDecoderAlt is inputDecoder that also accepts alt at offset 17.
-func inputDecoderAlt(n int, b17, alt byte, read func(in Input, b *body) Message) DecodeFunc {
+// inputDecoderAlt is inputDecoder that also accepts the type minus dec at
+// offset 17.
+func inputDecoderAlt(n int, dec byte, read func(in Input, b *body) Message) DecodeFunc {
 	return func(p []byte) (Message, error) {
-		want := b17
-		if len(p) > 17 && p[17] == alt {
-			want = alt
-		}
-		if err := checkStep(p, want, n); err != nil {
+		if err := checkStep(p, n, dec); err != nil {
 			return nil, err
 		}
 		b := &body{p: p}
@@ -135,24 +133,24 @@ func inputDecoderAlt(n int, b17, alt byte, read func(in Input, b *body) Message)
 	}
 }
 
-// registerInputs adds the input state decoders for v.
-func registerInputs(r *Registry, v Versions) {
+// registerInputs adds the input state decoders for version v.
+func registerInputs(r *Registry, v uint32) {
 	// Player 1 writes the type minus 1 at byte 17 in single-player games and
 	// in some multiplayer replays; every other player writes the type.
-	r.Register(TypePointer, v, inputDecoderAlt(37, TypePointer-1, TypePointer, func(in Input, b *body) Message {
+	register(r, v, TypePointer, inputDecoderAlt(37, 1, func(in Input, b *body) Message {
 		return &Pointer{Input: in, X: b.f32(28), Y: b.f32(32)}
 	}))
-	r.Register(TypeHover, v, inputDecoderAlt(53, TypeHover-1, TypeHover, func(in Input, b *body) Message {
+	register(r, v, TypeHover, inputDecoderAlt(53, 1, func(in Input, b *body) Message {
 		return &Hover{
 			Input: in, NodeA: b.u16(28), NodeB: b.u16(30), Device: b.u32(32), Terrain: b.u16(40),
 			HoverKind: b.u8(42), Material: b.u8(43), BuildType: b.u8(44), Buttons: b.u8(45), Feedback: b.u8(46),
 		}
 	}))
-	r.Register(TypeAPM, v, inputDecoder(36, TypeAPM, func(in Input, b *body) Message {
+	register(r, v, TypeAPM, inputDecoder(36, func(in Input, b *body) Message {
 		return &APM{Input: in, Rate: b.f32(28)}
 	}))
 	// u32@24 repeats the player.
-	r.Register(TypeAim, v, inputDecoder(37, TypeAim, func(in Input, b *body) Message {
+	register(r, v, TypeAim, inputDecoder(37, func(in Input, b *body) Message {
 		return &Aim{Input: in, X: b.f32(28), Y: b.f32(32)}
 	}))
 }
