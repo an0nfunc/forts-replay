@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/an0nfunc/forts-replay/compare/v0.3.1...v0.4.0) (2026-10-25)
+
+
+### Features
+
+* **match:** decode unknown header versions with the closest layout ([ea006da](https://github.com/an0nfunc/forts-replay/commit/ea006da0b41d889ec581bfb169bb510cccc21063))
+
 ## [0.3.1](https://github.com/an0nfunc/forts-replay/compare/v0.3.0...v0.3.1) (2026-10-23)
 
 
