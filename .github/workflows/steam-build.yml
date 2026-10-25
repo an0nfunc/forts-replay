@@ -1,0 +1,85 @@
+name: steam-build
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: steam-build
+  cancel-in-progress: false
+jobs:
+  # A new public build may change the replay format; Steam's app info is
+  # the only public place that says when one goes live. The third-party
+  # image runs through plain docker run in a job without permissions, so
+  # all it can hand on is the digits the next step parses from its output.
+  read:
+    if: github.repository == 'an0nfunc/forts-replay'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions: {}
+    outputs:
+      buildid: ${{ steps.build.outputs.buildid }}
+      timeupdated: ${{ steps.build.outputs.timeupdated }}
+      timebuildupdated: ${{ steps.build.outputs.timebuildupdated }}
+    steps:
+      - name: read the public build
+        run: >-
+          docker run --rm --cap-drop ALL --security-opt no-new-privileges
+          steamcmd/steamcmd:latest@sha256:514ea938c2c2c8d83a945fd7fd913c48d6eaaa96e36cec8c640d6a763ab3bf16
+          +login anonymous +app_info_update 1 +app_info_print 410900 +quit > appinfo.txt
+      - name: parse the public branch
+        id: build
+        run: |
+          python3 -I - appinfo.txt >> "$GITHUB_OUTPUT" <<'EOF'
+          import re, sys
+          text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+          public = re.search(r'"branches"\s*\{\s*"public"\s*\{([^}]*)\}', text)
+          if not public:
+              sys.exit("no public branch in the app info")
+          for key in ("buildid", "timeupdated", "timebuildupdated"):
+              m = re.search(r'"%s"\s+"([0-9]{1,20})"' % key, public.group(1))
+              if not m:
+                  sys.exit("no %s in the public branch" % key)
+              print("%s=%s" % (key, m.group(1)))
+          EOF
+  issue:
+    needs: read
+    if: github.repository == 'an0nfunc/forts-replay'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: open an issue for a new build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          BUILD: ${{ needs.read.outputs.buildid }}
+          LIVE: ${{ needs.read.outputs.timeupdated }}
+          BUILT: ${{ needs.read.outputs.timebuildupdated }}
+        run: |
+          set -euo pipefail
+          for v in "$BUILD" "$LIVE" "$BUILT"; do
+            [[ "$v" =~ ^[[:digit:]]{1,20}$ ]] || { echo "unexpected build info"; exit 1; }
+          done
+          export title="Forts build $BUILD is live on Steam"
+          known=$(gh issue list --state all --label game-build --search "\"$title\" in:title" --json title --jq '.[] | select(.title == env.title) | .title')
+          if [ -n "$known" ]; then
+            echo "build $BUILD already has an issue"
+            exit 0
+          fi
+          live_at=$(date -u -d "@$LIVE" '+%Y-%m-%d %H:%M UTC')
+          built_at=$(date -u -d "@$BUILT" '+%Y-%m-%d %H:%M UTC')
+          cat > body.md <<EOF
+          Steam's public branch of Forts (app 410900) runs build $BUILD, built $built_at and live since $live_at.
+
+          The README names the game versions the parser fully supports. Check whether this build changes the replay format:
+
+          - [ ] Record a replay on this build and note the version in its default file name.
+          - [ ] Run \`fwr info\` on it: header version, warnings, decoded commands and state.
+          - [ ] If the format changed, add the replay to the corpus and update \`docs/format.md\`.
+          - [ ] Update the supported versions in the README.
+          EOF
+          gh label create game-build --color 0e8a16 --description "A new Forts build is live on Steam" --force
+          gh issue create --title "$title" --label game-build --assignee "$OWNER" --body-file body.md
