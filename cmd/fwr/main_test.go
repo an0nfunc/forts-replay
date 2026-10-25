@@ -13,6 +13,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime/debug"
 	"slices"
@@ -778,6 +779,79 @@ func TestInfoJSON(t *testing.T) {
 	code, out, _ = runCmd(t, "info", matchFile(t, t.TempDir(), true))
 	if code != 0 || strings.Contains(out, dec(testSteamID)) || strings.Contains(out, dec(opponentSteamID)) {
 		t.Errorf("text output holds a SteamID: %s", out)
+	}
+}
+
+// provisionalNote is the warning for a replay of header version 1400.
+const provisionalNote = "provisional: header version 1400 is not known to this parser; decoded with the 1390 layout"
+
+// provisionalFile returns a two-player replay of header version 1400 in
+// the 1390 layout.
+func provisionalFile() []byte {
+	s := fwrtest.Setup{
+		Map: "maps/Test/Test.fwe", Recorder: 1, RecorderTeam: 101, Date: "20261023_195552",
+		Players: []fwrtest.Player{
+			{Slot: 0, ID: 1, Team: 101, Name: "Alpha", SteamID: testSteamID},
+			{Slot: 1, ID: 2, Team: 102, Name: "Beta", SteamID: opponentSteamID},
+		},
+	}
+	snap := fwrtest.State{Version: 1390, Lua: []string{"data = { gameFrame = 1, }"}, Nodes: []fwrtest.Node{{ID: 1, Kind: 0xff}}, Materials: []string{"m"}}.Payload()
+	recs := [][]byte{fwrtest.Record(snap, true)}
+	for _, p := range [][]byte{fwrtest.Tick(4), fwrtest.Sync(2), fwrtest.Ability(2), fwrtest.Tick(6), fwrtest.Sync(4)} {
+		recs = append(recs, fwrtest.Record(fwrtest.In1390(p), false))
+	}
+	return fwrtest.File(fwrtest.Header{Version: 1400, Frames: 4, Extra: s.Extra1390()}, bytes.Join(recs, nil))
+}
+
+// TestInfoProvisionalPipe: info reads a provisional replay from a pipe, as
+// a caller streaming it through stdin does, in one pass.
+func TestInfoProvisionalPipe(t *testing.T) {
+	if _, err := os.Stat("/dev/fd"); err != nil {
+		t.Skip("no /dev/fd")
+	}
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	go func() {
+		if _, err := w.Write(provisionalFile()); err != nil {
+			t.Error(err)
+		}
+		w.Close()
+	}()
+	code, out, errOut := runCmd(t, "info", "--json", fmt.Sprintf("/dev/fd/%d", r.Fd()))
+	var s struct {
+		FormatVersion int              `json:"format_version"`
+		Players       []map[string]any `json:"players"`
+		Warnings      []string         `json:"warnings"`
+	}
+	if err := json.Unmarshal([]byte(out), &s); err != nil {
+		t.Fatalf("exit %d, stderr %q: %v", code, errOut, err)
+	}
+	if code != 0 || errOut != "fwr info: warning: "+provisionalNote+"\n" ||
+		s.FormatVersion != 1400 || len(s.Players) != 2 || !slices.Equal(s.Warnings, []string{provisionalNote}) {
+		t.Errorf("exit %d, stderr %q, stdout %s", code, errOut, out)
+	}
+}
+
+// TestDumpProvisional: dump decodes a provisional replay's records with the
+// layout and ends with the note info gives.
+func TestDumpProvisional(t *testing.T) {
+	code, out, errOut := runCmd(t, "dump", "--json", write(t, t.TempDir(), "v1400.fwr", provisionalFile()))
+	if code != 0 || errOut != "fwr dump: warning: "+provisionalNote+"\n" {
+		t.Fatalf("exit %d, stderr %q", code, errOut)
+	}
+	docs := jsonLines(t, out)
+	var kinds []string
+	for _, d := range docs[:len(docs)-1] {
+		kinds = append(kinds, d["kind"].(string))
+	}
+	end := docs[len(docs)-1]
+	st, _ := docs[0]["state"].(map[string]any)
+	if !slices.Equal(kinds, []string{"snapshot", "tick", "sync", "ability", "tick", "sync"}) || st["nodes"] != 1.0 ||
+		!reflect.DeepEqual(end["warnings"], []any{provisionalNote}) {
+		t.Errorf("kinds %q, state %v, end %v", kinds, docs[0]["state"], end)
 	}
 }
 

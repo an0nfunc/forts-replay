@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/an0nfunc/forts-replay/container"
+	"github.com/an0nfunc/forts-replay/match"
 	"github.com/an0nfunc/forts-replay/msg"
 	"github.com/an0nfunc/forts-replay/stream"
 )
@@ -31,7 +32,19 @@ type handlers struct {
 type walkResult struct {
 	Blocks  int
 	Records int
-	Stopped error // decoding ended early after at least one block
+	Stopped error  // decoding ended early after at least one block
+	Note    string // set when records decode with a provisional layout
+}
+
+// decodeVersion returns the version to decode the records of header
+// version v as, which is v unless match.Layout picks a provisional layout,
+// and the note for that layout.
+func decodeVersion(v uint32) (uint32, string) {
+	layout, provisional, _ := match.Layout(v)
+	if !provisional {
+		return v, ""
+	}
+	return layout, fmt.Sprintf("%sheader version %d is not known to this parser; decoded with the %d layout", match.ProvisionalPrefix, v, layout)
 }
 
 // walk returns an error when nothing could be decoded, a handler failed or
@@ -48,6 +61,8 @@ func walk(ctx context.Context, path string, h handlers) (walkResult, error) {
 		return res, err
 	}
 	hdr := cr.Header()
+	version, note := decodeVersion(hdr.Version)
+	res.Note = note
 	if h.header != nil {
 		if err := h.header(hdr); err != nil {
 			return res, err
@@ -70,7 +85,7 @@ func walk(ctx context.Context, path string, h handlers) (walkResult, error) {
 		}
 		s := stream.New(b.Data)
 		if dec == nil {
-			dec = msg.NewDecoder(s, msg.DefaultRegistry(), hdr.Version, msg.Options{})
+			dec = msg.NewDecoder(s, msg.DefaultRegistry(), version, msg.Options{})
 		} else {
 			dec.Reset(s)
 		}

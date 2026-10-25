@@ -22,7 +22,7 @@ Point it at a replay and you get the map, the players, each side's commander, wh
 
 Commands name weapons and devices by numeric IDs, because this project doesn't ship any of the game's data. `info --json` maps those IDs to the game's internal names, such as `machinegun` or `battery`, which it reads from the replay itself.
 
-Only replays from Forts v1.38.2 and v1.39.0 are fully supported for now. A ranked v1.39.0 replay gets its result from the snapshots, with a warning, because the type of its ranked result record is not known yet. Replays from other versions still open, but with a warning and without the map, players, commanders, commands or match state.
+Only replays from Forts v1.38.2 and v1.39.0 are fully supported for now. A ranked v1.39.0 replay gets its result from the snapshots, with a warning, because the type of its ranked result record is not known yet. A replay from any other version after v1.38.2 is decoded as the closest supported version before it, if the result passes checks that a changed format would fail, with a warning that starts with `provisional: `. Replays that fail those checks, and replays from versions before v1.38.2, still open, but with a warning and without the map, players, commanders, commands or match state.
 
 ## Install
 
@@ -82,6 +82,7 @@ Besides the header, the players and the commands, the JSON holds:
 - `losses` and `builds`: the devices each team lost and finished, with the time and the device's name.
 - `device_types`: the name of each device type ID, for the type IDs in `place` commands.
 - `parser_version`: the version `fwr version` prints.
+- `warnings`: what the parser could not decode or found inconsistent, as sentences. A warning that starts with `provisional: ` says the replay's header version is not known and whether the closest known layout decoded it.
 
 The state, losses and builds end with the match, at the first snapshot that names the winner. Losses and builds are worked out from the replay and can be off now and then; the schema says how. A player's damage drops to 0 when they leave the game, so use the highest value, not the last.
 

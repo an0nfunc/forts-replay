@@ -57,7 +57,7 @@ type Summary struct {
 	Commanders    []Commander       `json:"commanders,omitempty"` // the sides with a commander
 	Result        *Result           `json:"result,omitempty"`
 	Timelines     []*PlayerTimeline `json:"timelines,omitempty"` // by player ID
-	State         *StateSeries      `json:"state,omitempty"`     // header versions 1383 and 1390 only
+	State         *StateSeries      `json:"state,omitempty"`     // decoded with the 1383 or 1390 layout only
 	Losses        []DeviceEvent     `json:"losses,omitempty"`
 	Builds        []DeviceEvent     `json:"builds,omitempty"`
 	DeviceTypes   map[uint16]string `json:"device_types,omitempty"` // type ID to save-name, from the snapshots
@@ -140,41 +140,96 @@ type Options struct {
 // Build decodes the replay r and summarises it, checking ctx between
 // blocks. It fails when nothing can be decoded. Damage after that stops
 // decoding: the summary then holds what decoded before it, with Truncated
-// set and a warning.
+// set and a warning. A header version this parser does not know is decoded
+// provisionally with the closest known layout below it (see Layout);
+// opts.Observe then sees that decode even when its checks fail and the
+// summary falls back to the version itself.
 func Build(ctx context.Context, r io.Reader, opts Options) (*Summary, error) {
 	cr, err := container.NewReader(bufio.NewReader(r), opts.Container)
 	if err != nil {
 		return nil, err
 	}
+	v := cr.Header().Version
+	layout, provisional, _ := Layout(v)
+	if !provisional {
+		bs, decErr := decode(ctx, cr, opts, v)
+		if decErr != nil {
+			return nil, decErr
+		}
+		return bs[0].sum, nil
+	}
+	// r can be read only once, so the layout and the version itself are
+	// decoded in one pass. Observe sees the layout's messages, whichever
+	// summary stands.
+	bs, err := decode(ctx, cr, opts, layout, v)
+	if err != nil {
+		return nil, err
+	}
+	if failed := bs[0].layoutCheck(); failed != "" {
+		bs[1].warnf("%sheader version %d did not decode with the %d layout: %s", ProvisionalPrefix, v, layout, failed)
+		return bs[1].sum, nil
+	}
+	bs[0].warnf("%sheader version %d is not known to this parser; decoded with the %d layout", ProvisionalPrefix, v, layout)
+	return bs[0].sum, nil
+}
+
+// decode runs one builder per version over the blocks of cr in lockstep and
+// returns them finished. Only the first sees opts.Observe.
+func decode(ctx context.Context, cr *container.Reader, opts Options, versions ...uint32) ([]*builder, error) {
+	type pass struct {
+		b       *builder
+		v       uint32
+		dec     *msg.Decoder
+		stopped error
+	}
 	reg := msg.DefaultRegistry()
-	b := newBuilder(cr.Header(), reg, opts)
-	var dec *msg.Decoder
-	for cr.NextBlock() {
+	passes := make([]*pass, len(versions))
+	for i, v := range versions {
+		o := opts
+		if i > 0 {
+			o.Observe = nil
+		}
+		passes[i] = &pass{b: newBuilder(cr.Header(), v, reg, o), v: v}
+	}
+	running := len(passes)
+	for running > 0 && cr.NextBlock() {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		blk := cr.Block()
-		b.sum.Blocks++
-		s := stream.New(blk.Data)
-		if dec == nil {
-			dec = msg.NewDecoder(s, reg, b.sum.FormatVersion, msg.Options{})
-		} else {
-			dec.Reset(s)
-		}
-		for dec.Next() {
-			b.add(dec.Record(), dec.Frame(), dec.Message())
-		}
-		if err := dec.Err(); err != nil {
-			return b.finish(fmt.Errorf("block %d: %w", blk.Index, err)), nil
+		for _, p := range passes {
+			if p.stopped != nil {
+				continue
+			}
+			p.b.sum.Blocks++
+			s := stream.New(blk.Data)
+			if p.dec == nil {
+				p.dec = msg.NewDecoder(s, reg, p.v, msg.Options{})
+			} else {
+				p.dec.Reset(s)
+			}
+			for p.dec.Next() {
+				p.b.add(p.dec.Record(), p.dec.Frame(), p.dec.Message())
+			}
+			if err := p.dec.Err(); err != nil {
+				p.stopped = fmt.Errorf("block %d: %w", blk.Index, err)
+				running--
+			}
 		}
 	}
-	if err := cr.Err(); err != nil {
-		if b.sum.Blocks == 0 {
-			return nil, err
-		}
-		return b.finish(err), nil
+	crErr := cr.Err()
+	if crErr != nil && passes[0].b.sum.Blocks == 0 {
+		return nil, crErr
 	}
-	return b.finish(nil), nil
+	bs := make([]*builder, len(passes))
+	for i, p := range passes {
+		if p.stopped == nil {
+			p.stopped = crErr
+		}
+		p.b.finish(p.stopped)
+		bs[i] = p.b
+	}
+	return bs, nil
 }
 
 // gameWinnerKey is the key the first snapshot after the end adds to the
@@ -185,12 +240,21 @@ type builder struct {
 	opts    Options
 	sum     *Summary
 	hdr     *header.Header // nil unless every header field decoded
+	hdrErr  error          // why hdr is nil
 	hasSync bool           // the version has a sync decoder
 	tl      *Timeline
 	st      *stateBuilder
 
-	syncs    int
-	lastSync uint32
+	syncs     int
+	firstSync uint32
+	lastSync  uint32
+	// What layoutCheck reads besides the syncs: the target of the ticks
+	// since the last sync, the first break in the steps, and the Invalid
+	// records.
+	tickTarget  uint32
+	tickPending bool
+	stepErr     string
+	invalid     int
 
 	ranked    *msg.Result // the first result record from player 0
 	rankedAt  int64
@@ -207,30 +271,33 @@ type builder struct {
 	ended bool
 }
 
-func newBuilder(hdr container.Header, reg *msg.Registry, opts Options) *builder {
+// newBuilder returns a builder for a replay with header hdr, decoded as
+// header version v.
+func newBuilder(hdr container.Header, v uint32, reg *msg.Registry, opts Options) *builder {
 	b := &builder{
 		opts: opts,
 		sum: &Summary{
 			SchemaVersion: SchemaVersion, FormatVersion: hdr.Version, Frames: hdr.Frames,
 			Duration: float64(hdr.Frames) / FramesPerSecond, Warnings: []string{},
 		},
-		hasSync: decodes(reg, msg.TypeSync, hdr.Version),
+		hasSync: decodes(reg, msg.TypeSync, v),
 		tl:      NewTimeline(opts.Timeline),
 	}
-	h, err := header.Parse(hdr.Version, hdr.Raw)
+	h, err := header.Parse(v, hdr.Raw)
+	b.hdrErr = err
 	switch {
 	case errors.Is(err, header.ErrVersion):
-		b.warnf("header fields not decoded for version %d", hdr.Version)
+		b.warnf("header fields not decoded for version %d", v)
 	case err != nil:
 		b.warnf("%v", err)
 	default:
 		b.hdr = h
 	}
-	b.st = newStateBuilder(hdr.Version, b.hdr, opts.Timeline, b.warnf)
+	b.st = newStateBuilder(v, b.hdr, opts.Timeline, b.warnf)
 	if h != nil {
 		b.sum.Ranked, b.sum.Map, b.sum.Options = h.Ranked, h.Map, h.Options
-		if h.Ranked && !decodes(reg, msg.TypeResult, hdr.Version) {
-			b.warnf("ranked result not decoded for version %d", hdr.Version)
+		if h.Ranked && !decodes(reg, msg.TypeResult, v) {
+			b.warnf("ranked result not decoded for version %d", v)
 		}
 		if h.Commanders == nil {
 			b.warnf("header: commander names do not decode")
@@ -257,9 +324,27 @@ func (b *builder) add(rec stream.Record, frame int64, m msg.Message) {
 	}
 	b.tl.Add(frame, m)
 	switch m := m.(type) {
+	case *msg.Tick:
+		if b.tickPending && m.Target != b.tickTarget && b.stepErr == "" {
+			b.stepErr = fmt.Sprintf("ticks to frames %d and %d before one sync", b.tickTarget, m.Target)
+		}
+		b.tickTarget, b.tickPending = m.Target, true
 	case *msg.Sync:
+		if b.syncs == 0 {
+			b.firstSync = m.Frame
+		}
 		b.syncs++
 		b.lastSync = m.Frame
+		switch {
+		case b.stepErr != "":
+		case b.tickPending && b.tickTarget != m.Frame+2:
+			b.stepErr = fmt.Sprintf("tick to frame %d before the sync of frame %d", b.tickTarget, m.Frame)
+		case m.Values[16] != 0:
+			b.stepErr = fmt.Sprintf("sync of frame %d has slot 16 set", m.Frame)
+		}
+		b.tickPending = false
+	case *msg.Invalid:
+		b.invalid++
 	case *msg.Result:
 		switch {
 		case m.Player != 0:
