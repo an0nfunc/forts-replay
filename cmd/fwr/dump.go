@@ -134,7 +134,7 @@ func runDump(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	enc := json.NewEncoder(w)
 	var version uint32
 	setVersion := func(h container.Header) error {
-		version = h.Version
+		version, _ = decodeVersion(h.Version)
 		return nil
 	}
 	show := func(it item) error {
@@ -153,6 +153,10 @@ func runDump(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return exitFail
 	}
 	end := endDoc{SchemaVersion: dumpSchemaVersion, Kind: "end", Blocks: res.Blocks, Records: res.Records, Warnings: []string{}}
+	if res.Note != "" {
+		fmt.Fprintf(stderr, "fwr dump: warning: %s\n", res.Note)
+		end.Warnings = append(end.Warnings, res.Note)
+	}
 	if res.Stopped != nil {
 		fmt.Fprintf(stderr, "fwr dump: warning: decoding stopped early: %s\n", printable(res.Stopped.Error()))
 		end.Truncated = true

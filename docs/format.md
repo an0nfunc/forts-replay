@@ -2,6 +2,8 @@
 
 Status: what is known as of game v1.38.2 (header version 1383) and v1.39.0 (header version 1390). The layouts are those of 1383; a "Version 1390" note says where 1390 differs. All integers are little-endian. "Candidate" marks a reading that is consistent with the samples but not confirmed.
 
+A game update can raise the header version without changing the format. The parser decodes a header version it does not know with the closest known layout below it, provisionally: the result stands only when the header decodes, every player has a SteamID when there are two or more, the commander names decode, the ticks and syncs keep the structure "Ticks and syncs" describes, and no record of a decoded type fails to decode. Otherwise the replay is summarised as a version without a layout, with no header fields. Either way `fwr info` adds a warning that starts with `provisional: `. A version below 1383 has no layout.
+
 ## File layout
 
 A replay is a header followed by blocks up to the end of the file. There is no trailer.
@@ -161,7 +163,7 @@ The simulation advances in steps of two frames. Each step writes a tick, then a 
 | 24 | u32 frame the step advances to | u32 frame |
 | 28 | | 17 × u64 |
 
-Of the sync's 17 values, slots 2, 3 and 13 are the same in every sync (1112, 2341, 292270), slot 15 is constant within a replay (a small number in version 1383, a full 64-bit value in 1390), slot 16 is 0, slots 5 to 12 look like hashes, and slots 0, 1, 4 and 14 vary between syncs. At the same frame, slots 8 to 10 match in both samples. Candidate state checksums, for desync detection.
+Of the sync's 17 values, slots 2, 3 and 13 vary between replays and in some replays between syncs, slot 15 is constant within a replay (a small number in version 1383, a full 64-bit value in 1390), slot 16 is 0, slots 5 to 12 look like hashes, and slots 0, 1, 4 and 14 vary between syncs. At the same frame, slots 8 to 10 match in both samples. Candidate state checksums, for desync detection.
 
 The first tick advances to frame 4 and the first sync is frame 2. Each later sync is 2 frames after the one before, and each tick advances to its sync's frame plus 2. The last sync is the header's frame count, or the count minus 1 when the count is odd, which happens in some multiplayer replays. The parser gives every message the frame of the latest sync before it; messages before the first sync have none. Candidate: a command takes effect in the step it is written in (see "Commands").
 
