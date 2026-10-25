@@ -22,5 +22,52 @@ jobs:
           permission-issues: write
           permission-pull-requests: write
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
+      # Only a release holding a releasable commit by a person merges itself;
+      # bot commits alone, such as dependency bumps, wait. gh filters --head
+      # on the branch name alone, so a fork's pull request of that name is
+      # skipped, never fatal. Authors count, not committers: a rebase merge
+      # makes a person commit a bot's change.
+      # release-please updates its pull request only when the notes change,
+      # so after a docs: or ci: commit it stays behind main until rebased.
+      - name: merge the release pull request once its checks pass
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASED: ${{ steps.release.outputs.releases_created }}
+        run: |
+          set -euo pipefail
+          if [ "$RELEASED" = true ]; then
+            exit 0
+          fi
+          prs=$(gh pr list --state open --head release-please--branches--main \
+            --json number,isCrossRepository,author,headRefName,headRefOid |
+            jq -c '[.[] | select(.isCrossRepository == false and .author.login == "app/forts-replay-release")]')
+          if [ "$(jq length <<<"$prs")" -ne 1 ]; then
+            echo "no release pull request"
+            exit 0
+          fi
+          number=$(jq -r '.[0].number' <<<"$prs")
+          head=$(jq -r '.[0].headRefOid' <<<"$prs")
+          tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" | jq -r .tag_name)
+          # --paginate prints one document per page: one line per qualifying
+          # commit, counted outside jq.
+          people=$(gh api --paginate "repos/$GITHUB_REPOSITORY/compare/$tag...main" | jq -r '
+            .commits[]
+            | select(.author.type == "User")
+            | (.commit.message | split("\n")) as $lines
+            | select(
+                ($lines[0] | test("^(feat|feature|fix|perf|revert)(\\([^)]*\\))?!?: ") or test("^[a-z]+(\\([^)]*\\))?!: "))
+                or any($lines[1:][]; startswith("BREAKING CHANGE: ") or startswith("Release-As:") or contains("BREAKING-CHANGE:")))
+            | .sha' | wc -l)
+          if [ "$people" -eq 0 ]; then
+            echo "no releasable commit by a person; the release waits for a manual merge"
+            exit 0
+          fi
+          behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$head" | jq .behind_by)
+          if [ "$behind" -gt 0 ]; then
+            gh pr update-branch --rebase "$number"
+          fi
+          gh pr merge --auto --rebase "$number"
