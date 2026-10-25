@@ -43,4 +43,5 @@ Dependencies point downward only:
 - Third-party dependencies: `github.com/ulikunitz/xz`, and in tests only `github.com/santhosh-tekuri/jsonschema/v6` (depguard keeps it there). Ask before adding another.
 - Every `.go` file starts with `// SPDX-License-Identifier: AGPL-3.0-or-later`.
 - Commits: short conventional subject (`feat(container): ...`), a body only when it adds something.
+- New game builds: the `steam-build` workflow reads Steam's public Forts build daily with anonymous SteamCMD and opens a `game-build` issue for each new build, with the steps to check whether it changes the replay format.
 - Releases: release-please keeps a pull request open with the next version and `CHANGELOG.md`, built from the conventional commits since the last tag; merging it tags the release. Below 1.0, a breaking change bumps the minor version. Tag rulesets let only the release app create tags and nobody move or delete one.
