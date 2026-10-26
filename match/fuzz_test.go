@@ -63,7 +63,7 @@ func FuzzBuild(f *testing.F) {
 	f.Add(relabel(fixtureFile1390(f, "probe-delete.fwr"), 1400))
 	f.Add(relabel(fixtureFile(f, fixture.Names[0]), 1400))
 	f.Add(game(duel(true), fwrtest.Result(0, 1, 101, testSteamID), won(1)))
-	f.Add(gameIn(1390, duel(true), [][]byte{won(1)}, fwrtest.Result(0, 1, 101, testSteamID)))
+	f.Add(gameIn(1390, duel(true), [][]byte{fwrtest.Result(0, 1, 101, testSteamID), won(1)}))
 	for _, v := range []uint32{1383, 1390} {
 		f.Add(stateReplay(v, solo(), []fwrtest.State{
 			snap([]int32{0, 1, 2, 101}, []fwrtest.Device{dev(1, 101, "reactor"), dev(2, 101, "gun")}, nil, nil),

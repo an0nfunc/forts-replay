@@ -210,15 +210,16 @@ func (s Setup) Extra1390() []byte {
 
 // In1390 returns a copy of payload p, a record as header version 1383
 // writes it, with the type version 1390 gives it: input records and chat
-// (0x92 to 0x9a) move by 3 and the types from 0xbe to 0xe6 by 4, at offset
-// 17 too except in a snapshot (0xe1). Other types stay.
+// (0x92 to 0x9a) move by 3, and the ranked result (0xbb) and the types from
+// 0xbe to 0xe6 by 4, at offset 17 too except in a snapshot (0xe1). Other
+// types stay.
 func In1390(p []byte) []byte {
 	q := bytes.Clone(p)
 	var d byte
 	switch t := p[0]; {
 	case t >= 0x92 && t <= 0x9a:
 		d = 3
-	case t >= 0xbe && t <= 0xe6:
+	case t == 0xbb, t >= 0xbe && t <= 0xe6:
 		d = 4
 	}
 	q[0] += d

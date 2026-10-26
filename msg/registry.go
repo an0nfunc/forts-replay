@@ -64,10 +64,9 @@ func (r *Registry) Lookup(t byte, version uint32) DecodeFunc {
 // RecordType returns the record type that messages of type t have in
 // replays of header version v. The Type constants and MsgType name message
 // types by their record types in version 1383. Version 1390 moves the input
-// records and chat (0x92 to 0x9a) by 3 and the types from the tick (0xbe) to
-// the script call (0xe6) by 4; it reports false for any other type there,
-// the ranked result included, whose 1390 type is not known. Every other
-// version keeps the 1383 types.
+// records and chat (0x92 to 0x9a) by 3, and the ranked result and the types
+// from the tick (0xbe) to the script call (0xe6) by 4; it reports false for
+// any other type there. Every other version keeps the 1383 types.
 func RecordType(t byte, v uint32) (byte, bool) {
 	if v != 1390 {
 		return t, true
@@ -75,7 +74,7 @@ func RecordType(t byte, v uint32) (byte, bool) {
 	switch {
 	case t >= TypeHover && t <= 0x9a:
 		return t + 3, true
-	case t >= TypeTick && t <= TypeScriptCall:
+	case t == TypeResult, t >= TypeTick && t <= TypeScriptCall:
 		return t + 4, true
 	}
 	return 0, false

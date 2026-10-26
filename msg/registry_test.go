@@ -66,14 +66,14 @@ func TestRecordType(t *testing.T) {
 		TypeRepairLink: 0xd3, TypeRepair: 0xd4, TypeDoor: 0xd5, TypePlace: 0xd6, TypeRepairDevice: 0xd8,
 		TypeUpgrade: 0xd9, TypeScrap: 0xda, TypePortalLink: 0xdb, TypePortalReverse: 0xdc, TypeAbility: 0xde,
 		TypeFireAt: 0xdf, TypeAmmo: 0xe0, TypeRepairArea: 0xe4, TypeSnapshot: 0xe5, TypeScreenshot: 0xe6,
-		TypeScriptCall: 0xea,
+		TypeScriptCall: 0xea, TypeResult: 0xbf,
 	}
 	for typ, w := range want {
 		if rt, ok := RecordType(typ, 1390); !ok || rt != w {
 			t.Errorf("%#02x: %#02x, %v; want %#02x", typ, rt, ok, w)
 		}
 	}
-	for _, typ := range []byte{0, 0x8d, 0x91, 0xb8, 0xba, TypeResult, 0xe7, 0xff} {
+	for _, typ := range []byte{0, 0x8d, 0x91, 0xb8, 0xba, 0xe7, 0xff} {
 		if rt, ok := RecordType(typ, 1390); ok {
 			t.Errorf("%#02x: %#02x in version 1390", typ, rt)
 		}
@@ -91,7 +91,7 @@ func TestRecordType(t *testing.T) {
 // unplaced have no decoder there.
 func TestRegistry1390(t *testing.T) {
 	r := DefaultRegistry()
-	for _, typ := range []byte{TypeTick, 0xbf, TypeSync, TypeResult, TypeSnapshot, 0xe2} {
+	for _, typ := range []byte{TypeTick, TypeSync, TypeResult, TypeSnapshot, 0xe2} {
 		if r.Lookup(typ, 1390) != nil {
 			t.Errorf("%#02x: decoder in version 1390", typ)
 		}

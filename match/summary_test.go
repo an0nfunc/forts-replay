@@ -64,9 +64,8 @@ func game(s fwrtest.Setup, end ...[]byte) []byte {
 }
 
 // gameIn is game for header version 1383 or 1390, with the records of end,
-// given as 1383 writes them, at the version's types, then the records of
-// raw as they are.
-func gameIn(v uint32, s fwrtest.Setup, end [][]byte, raw ...[]byte) []byte {
+// given as 1383 writes them, at the version's types.
+func gameIn(v uint32, s fwrtest.Setup, end [][]byte) []byte {
 	retype, extra := inVersion(v, s)
 	recs := [][]byte{
 		fwrtest.Record(retype(luaState("data = { gameFrame = 1, }")), true),
@@ -75,9 +74,6 @@ func gameIn(v uint32, s fwrtest.Setup, end [][]byte, raw ...[]byte) []byte {
 	}
 	for _, p := range end {
 		recs = append(recs, fwrtest.Record(retype(p), false))
-	}
-	for _, p := range raw {
-		recs = append(recs, fwrtest.Record(p, false))
 	}
 	return fwrtest.File(fwrtest.Header{Version: v, Frames: 4, Extra: extra}, bytes.Join(recs, nil))
 }
@@ -237,29 +233,20 @@ func TestBuildRanked(t *testing.T) {
 }
 
 // TestBuild1390: a version 1390 replay gives the summary its records give
-// in 1383. In a ranked one a record of the 1383 ranked result layout names
-// no result, under its 1383 type or the candidates 0xbe and 0xbf; the
-// snapshot's result stands, with a warning.
+// in 1383, the ranked result included.
 func TestBuild1390(t *testing.T) {
 	end := [][]byte{fwrtest.Place(1, 101, 3, 5, 6, -1), fwrtest.Scrap(1, 101, 9), fwrtest.Ability(2), won(2)}
-	want := buildFile(t, game(duel(false), end...))
-	want.FormatVersion = 1390
-	if got := buildFile(t, gameIn(1390, duel(false), end)); !reflect.DeepEqual(got, want) {
-		t.Errorf("got  %+v\nwant %+v", got, want)
-	}
-	var results [][]byte
-	for _, typ := range []byte{0xbb, 0xbe, 0xbf} {
-		p := fwrtest.Result(0, 1, 101, testSteamID)
-		p[0], p[17] = typ, typ
-		results = append(results, p)
-	}
-	s := buildFile(t, gameIn(1390, duel(true), [][]byte{won(2)}, results...))
-	if !s.Ranked || !reflect.DeepEqual(s.Result, &Result{Winner: 2, Frame: 4, Source: SourceSnapshot}) ||
-		!reflect.DeepEqual(s.Warnings, []string{"ranked result not decoded for version 1390"}) {
-		t.Errorf("ranked: result %+v, warnings %q", s.Result, s.Warnings)
-	}
-	if s := buildFile(t, gameIn(1390, duel(false), nil, results...)); s.Result != nil || len(s.Warnings) != 0 {
-		t.Errorf("not ranked: result %+v, warnings %q", s.Result, s.Warnings)
+	ranked := append([][]byte{fwrtest.Result(0, 2, 101, testSteamID)}, end...)
+	for _, c := range []struct {
+		setup  fwrtest.Setup
+		end    [][]byte
+		source string
+	}{{duel(false), end, SourceSnapshot}, {duel(true), ranked, SourceRanked}} {
+		want := buildFile(t, game(c.setup, c.end...))
+		want.FormatVersion = 1390
+		if got := buildFile(t, gameIn(1390, c.setup, c.end)); !reflect.DeepEqual(got, want) || got.Result == nil || got.Result.Source != c.source {
+			t.Errorf("got  %+v\nwant %+v", got, want)
+		}
 	}
 	noSync := fwrtest.File(fwrtest.Header{Version: 1390, Frames: 4}, fwrtest.Record(fwrtest.In1390(fwrtest.Tick(4)), true))
 	if s := buildFile(t, noSync); !slices.Contains(s.Warnings, "header has 4 frames, no sync decoded") {

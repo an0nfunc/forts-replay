@@ -22,7 +22,7 @@ Point it at a replay and you get the map, the players, each side's commander, wh
 
 Commands name weapons and devices by numeric IDs, because this project doesn't ship any of the game's data. `info --json` maps those IDs to the game's internal names, such as `machinegun` or `battery`, which it reads from the replay itself.
 
-Only replays from Forts v1.38.2 and v1.39.0 are fully supported for now. A ranked v1.39.0 replay gets its result from the snapshots, with a warning, because the type of its ranked result record is not known yet. A replay from any other version after v1.38.2 is decoded as the closest supported version before it, if the result passes checks that a changed format would fail, with a warning that starts with `provisional: `. Replays that fail those checks, and replays from versions before v1.38.2, still open, but with a warning and without the map, players, commanders, commands or match state.
+Only replays from Forts v1.38.2 and v1.39.0 are fully supported for now. A replay from any other version after v1.38.2 is decoded as the closest supported version before it, if the result passes checks that a changed format would fail, with a warning that starts with `provisional: `. Replays that fail those checks, and replays from versions before v1.38.2, still open, but with a warning and without the map, players, commanders, commands or match state.
 
 ## Install
 
