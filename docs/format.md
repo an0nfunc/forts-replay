@@ -322,7 +322,11 @@ In version 1390 its type is 0xbf, moved by 4, with the same layout.
 | 32 | u64 | The recording client's SteamID |
 | 40 | u64 | The same SteamID again |
 | 48 | u32 | Candidate: the recording client's leaderboard rank |
-| 52 | 33 bytes | Not decoded. Candidate score and rating before and after the match, and season wins and losses. |
+| 52 | u32 | Candidate: the recording client's score before the result, about 3000 more than its rating |
+| 56 | u32 | Candidate: its score after the match |
+| 60 | u32 | The recording client's leaderboard rating before the result. A won match adds 32. |
+| 64 | u32 | Its leaderboard rating after the match |
+| 68 | 17 bytes | Not decoded. Candidate: season wins and losses. |
 
 ## Screenshots (type 0xe2)
 

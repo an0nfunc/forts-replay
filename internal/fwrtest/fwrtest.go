@@ -305,6 +305,9 @@ func Snapshot(texts ...string) []byte {
 	return p
 }
 
+// ResultRating is the rating after the match in Result's payloads.
+const ResultRating = 1258
+
 // Result returns a ranked result payload (0xbb) from sender.
 func Result(sender, winner uint32, team int32, steamID uint64) []byte {
 	p := make([]byte, 85)
@@ -315,6 +318,7 @@ func Result(sender, winner uint32, team int32, steamID uint64) []byte {
 	le.PutUint32(p[28:], uint32(team))
 	le.PutUint64(p[32:], steamID)
 	le.PutUint64(p[40:], steamID)
+	le.PutUint32(p[64:], ResultRating)
 	return p
 }
 

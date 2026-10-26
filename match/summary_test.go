@@ -29,6 +29,9 @@ const (
 	opponentSteamID uint64 = 76561202255233022
 )
 
+// testRating is the rating in fwrtest.Result's records.
+var testRating = new(uint32(fwrtest.ResultRating))
+
 func buildFile(t *testing.T, data []byte) *Summary {
 	t.Helper()
 	s, err := Build(t.Context(), bytes.NewReader(data), Options{})
@@ -227,7 +230,7 @@ func TestBuildRanked(t *testing.T) {
 		{ID: 2, Slot: 1, Team: 102, Side: 2, SteamID: opponentSteamID},
 	}
 	if !s.Ranked || !reflect.DeepEqual(s.Players, want) || len(s.Warnings) != 0 ||
-		!reflect.DeepEqual(s.Result, &Result{Winner: 1, Frame: 4, Source: SourceRanked}) || s.AI != nil {
+		!reflect.DeepEqual(s.Result, &Result{Winner: 1, Frame: 4, Source: SourceRanked, Rating: testRating}) || s.AI != nil {
 		t.Errorf("%+v", s)
 	}
 }
@@ -268,18 +271,18 @@ func TestResultRules(t *testing.T) {
 		steam  uint64
 		warn   string // "" means no warnings
 	}{
-		{"snapshot only", duel(false), [][]byte{won(2)}, &Result{2, 4, SourceSnapshot}, testSteamID, ""},
-		{"ranked and snapshot agree", duel(true), [][]byte{fwrtest.Result(0, 2, 101, testSteamID), won(2)}, &Result{2, 4, SourceRanked}, testSteamID, ""},
-		{"they disagree", duel(true), [][]byte{fwrtest.Result(0, 1, 101, testSteamID), won(2)}, &Result{1, 4, SourceRanked}, testSteamID, "ranked result names side 1, snapshot side 2"},
-		{"ranked winner 3", duel(true), [][]byte{fwrtest.Result(0, 3, 101, testSteamID), won(2)}, &Result{2, 4, SourceSnapshot}, testSteamID, "ranked result at frame 4 names side 3"},
+		{"snapshot only", duel(false), [][]byte{won(2)}, &Result{2, 4, SourceSnapshot, nil}, testSteamID, ""},
+		{"ranked and snapshot agree", duel(true), [][]byte{fwrtest.Result(0, 2, 101, testSteamID), won(2)}, &Result{2, 4, SourceRanked, testRating}, testSteamID, ""},
+		{"they disagree", duel(true), [][]byte{fwrtest.Result(0, 1, 101, testSteamID), won(2)}, &Result{1, 4, SourceRanked, testRating}, testSteamID, "ranked result names side 1, snapshot side 2"},
+		{"ranked winner 3", duel(true), [][]byte{fwrtest.Result(0, 3, 101, testSteamID), won(2)}, &Result{2, 4, SourceSnapshot, nil}, testSteamID, "ranked result at frame 4 names side 3"},
 		{"snapshot winner 5", duel(false), [][]byte{won(5)}, nil, testSteamID, "snapshot at frame 4 names no side 1 or 2"},
 		{"another client's record", duel(true), [][]byte{fwrtest.Result(2, 2, 102, 7)}, nil, testSteamID, ""},
-		{"first ranked record wins", duel(true), [][]byte{fwrtest.Result(0, 1, 101, testSteamID), fwrtest.Result(0, 2, 101, 7)}, &Result{1, 4, SourceRanked}, testSteamID, "ranked result at frame 4 differs from the one at frame 4"},
-		{"repeated ranked record", duel(true), [][]byte{fwrtest.Result(0, 1, 101, testSteamID), fwrtest.Result(0, 1, 101, testSteamID)}, &Result{1, 4, SourceRanked}, testSteamID, ""},
-		{"SteamIDs differ", duel(true), [][]byte{fwrtest.Result(0, 1, 101, opponentSteamID)}, &Result{1, 4, SourceRanked}, testSteamID, differ},
-		{"team mismatch", duel(true), [][]byte{fwrtest.Result(0, 1, 102, opponentSteamID)}, &Result{1, 4, SourceRanked}, testSteamID, "ranked result team 102, recorder team 101"},
-		{"recorder entry on another team", otherTeam, [][]byte{fwrtest.Result(0, 1, 101, testSteamID)}, &Result{1, 4, SourceRanked}, testSteamID, "ranked result team 101, recorder team 101, recorder entry team 102"},
-		{"not ranked", duel(false), [][]byte{fwrtest.Result(0, 1, 101, testSteamID)}, &Result{1, 4, SourceRanked}, testSteamID, "ranked result record in a replay that is not ranked"},
+		{"first ranked record wins", duel(true), [][]byte{fwrtest.Result(0, 1, 101, testSteamID), fwrtest.Result(0, 2, 101, 7)}, &Result{1, 4, SourceRanked, testRating}, testSteamID, "ranked result at frame 4 differs from the one at frame 4"},
+		{"repeated ranked record", duel(true), [][]byte{fwrtest.Result(0, 1, 101, testSteamID), fwrtest.Result(0, 1, 101, testSteamID)}, &Result{1, 4, SourceRanked, testRating}, testSteamID, ""},
+		{"SteamIDs differ", duel(true), [][]byte{fwrtest.Result(0, 1, 101, opponentSteamID)}, &Result{1, 4, SourceRanked, testRating}, testSteamID, differ},
+		{"team mismatch", duel(true), [][]byte{fwrtest.Result(0, 1, 102, opponentSteamID)}, &Result{1, 4, SourceRanked, testRating}, testSteamID, "ranked result team 102, recorder team 101"},
+		{"recorder entry on another team", otherTeam, [][]byte{fwrtest.Result(0, 1, 101, testSteamID)}, &Result{1, 4, SourceRanked, testRating}, testSteamID, "ranked result team 101, recorder team 101, recorder entry team 102"},
+		{"not ranked", duel(false), [][]byte{fwrtest.Result(0, 1, 101, testSteamID)}, &Result{1, 4, SourceRanked, testRating}, testSteamID, "ranked result record in a replay that is not ranked"},
 		{"only the first winner snapshot", duel(false), [][]byte{luaState(`data = { note = "gameWinner", }`), won(1)}, nil, testSteamID, "snapshot at frame 4 mentions gameWinner, but no data table holds it"},
 	}
 	for _, c := range cases {
@@ -385,7 +388,7 @@ func TestSummaryJSON(t *testing.T) {
 		`"schema_version":1`, fmt.Sprintf(`"steam_id":"%d"`, testSteamID),
 		fmt.Sprintf(`{"id":2,"slot":1,"team":102,"side":2,"steam_id":"%d"}`, opponentSteamID),
 		`"commanders":[{"side":1,"name":"commander-test-alpha"},{"side":2,"name":"commander-test-beta"}]`,
-		`"result":{"winner":1,"frame":4,"source":"ranked"}`,
+		`"result":{"winner":1,"frame":4,"source":"ranked","rating":1258}`,
 		`{"player":1,"counts":{"ability":1},"commands":[{"frame":4,"kind":"ability","fields":{"player":1,"team":0}}]}`,
 		`{"player":2,"counts":{"ability":1},"commands":[]}`,
 	} {

@@ -138,7 +138,8 @@
       "properties": {
         "winner": {"enum": [1, 2], "description": "Winning side."},
         "frame": {"$ref": "#/$defs/frame"},
-        "source": {"enum": ["ranked", "snapshot"], "description": "ranked: the game's ranked result record, exact to the frame. snapshot: the first state snapshot after the end, up to 5 seconds late."}
+        "source": {"enum": ["ranked", "snapshot"], "description": "ranked: the game's ranked result record, exact to the frame. snapshot: the first state snapshot after the end, up to 5 seconds late."},
+        "rating": {"$ref": "#/$defs/u32", "description": "With source ranked, the recording client's leaderboard rating after the match. Left out when the header version is decoded provisionally."}
       }
     },
     "timeline": {

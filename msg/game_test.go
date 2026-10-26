@@ -17,6 +17,7 @@ func result(sender, winner uint32, team int32, id, id2 uint64) []byte {
 	binary.LittleEndian.PutUint32(p[28:], uint32(team))
 	binary.LittleEndian.PutUint64(p[32:], id)
 	binary.LittleEndian.PutUint64(p[40:], id2)
+	binary.LittleEndian.PutUint32(p[64:], 1258)
 	return p
 }
 
@@ -37,11 +38,11 @@ func TestResult(t *testing.T) {
 	const id = 1234567890123456789
 	dec := DefaultRegistry().Lookup(TypeResult, 1383)
 	m, err := dec(result(0, 2, 102, id, id))
-	if err != nil || !reflect.DeepEqual(m, &Result{Winner: 2, Team: 102, SteamID: id}) {
+	if err != nil || !reflect.DeepEqual(m, &Result{Winner: 2, Team: 102, SteamID: id, Rating: 1258}) {
 		t.Errorf("%#v, %v", m, err)
 	}
 	m, err = dec(result(2, 2, 102, id, id))
-	if err != nil || !reflect.DeepEqual(m, &Result{Player: 2, Winner: 2, Team: 102, SteamID: id}) {
+	if err != nil || !reflect.DeepEqual(m, &Result{Player: 2, Winner: 2, Team: 102, SteamID: id, Rating: 1258}) {
 		t.Errorf("another client's record: %#v, %v", m, err)
 	}
 	bad := map[string][]byte{
@@ -62,7 +63,7 @@ func TestResult(t *testing.T) {
 	p[0], p[17] = 0xbf, 0xbf
 	if fn := DefaultRegistry().Lookup(0xbf, 1390); fn == nil {
 		t.Error("no decoder for 0xbf in version 1390")
-	} else if m, err := fn(p); err != nil || !reflect.DeepEqual(m, &Result{Winner: 2, Team: 102, SteamID: id}) {
+	} else if m, err := fn(p); err != nil || !reflect.DeepEqual(m, &Result{Winner: 2, Team: 102, SteamID: id, Rating: 1258}) {
 		t.Errorf("version 1390: %#v, %v", m, err)
 	}
 }

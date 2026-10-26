@@ -143,10 +143,10 @@ func TestBuildStopsAtResult(t *testing.T) {
 	}{
 		{1383, solo(), nil, Result{Winner: 1, Frame: 20, Source: SourceSnapshot}},
 		{1390, solo(), nil, Result{Winner: 1, Frame: 20, Source: SourceSnapshot}},
-		{1383, ranked, [][][]byte{{fwrtest.Result(0, 1, 101, 0)}}, Result{Winner: 1, Frame: 10, Source: SourceRanked}},
+		{1383, ranked, [][][]byte{{fwrtest.Result(0, 1, 101, 0)}}, Result{Winner: 1, Frame: 10, Source: SourceRanked, Rating: testRating}},
 	} {
 		s := buildFile(t, stateReplay(c.v, c.setup, snaps, c.cmds...))
-		if s.Result == nil || *s.Result != c.result || s.State == nil || !reflect.DeepEqual(s.State.Frames, []int64{10, 20}) ||
+		if s.Result == nil || !reflect.DeepEqual(*s.Result, c.result) || s.State == nil || !reflect.DeepEqual(s.State.Frames, []int64{10, 20}) ||
 			!reflect.DeepEqual(s.Losses, lost) || len(s.Builds) != 0 || len(s.Warnings) != 0 {
 			t.Errorf("%d %v: result %+v, state %+v, losses %+v, builds %+v, warnings %q", c.v, c.result.Source, s.Result, s.State, s.Losses, s.Builds, s.Warnings)
 		}
