@@ -187,6 +187,18 @@ func TestProvisional1383(t *testing.T) {
 	t.Logf("%d replays", n)
 }
 
+// A provisional decode keeps the ranked result but not its rating.
+func TestProvisionalRating(t *testing.T) {
+	data := gameIn(1390, duel(true), [][]byte{fwrtest.Result(0, 1, 101, testSteamID), won(1)})
+	if s := buildFile(t, data); s.Result == nil || s.Result.Rating == nil {
+		t.Fatalf("1390: result %+v", s.Result)
+	}
+	s := buildFile(t, relabel(data, 1400))
+	if s.Result == nil || s.Result.Source != SourceRanked || s.Result.Rating != nil || !slices.Contains(s.Warnings, passed1400) {
+		t.Fatalf("1400: result %+v, warnings %q", s.Result, s.Warnings)
+	}
+}
+
 // at1400 returns a replay of header version 1400 with frames frames, the
 // header of setup s in the 1390 layout, and one block of recs.
 func at1400(s fwrtest.Setup, frames uint32, recs ...[]byte) []byte {

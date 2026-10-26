@@ -125,6 +125,9 @@ type Result struct {
 	Winner uint32 `json:"winner"` // side 1 or 2
 	Frame  int64  `json:"frame"`  // frame of the record that names the winner
 	Source string `json:"source"` // SourceRanked or SourceSnapshot
+	// Rating is, with SourceRanked, the recording client's leaderboard
+	// rating after the match.
+	Rating *uint32 `json:"rating,omitempty"`
 }
 
 // Options configure Build. Zero values take each package's defaults.
@@ -170,6 +173,10 @@ func Build(ctx context.Context, r io.Reader, opts Options) (*Summary, error) {
 		return bs[1].sum, nil
 	}
 	bs[0].warnf("%sheader version %d is not known to this parser; decoded with the %d layout", ProvisionalPrefix, v, layout)
+	// Another version may put something else at the rating's offset.
+	if r := bs[0].sum.Result; r != nil {
+		r.Rating = nil
+	}
 	return bs[0].sum, nil
 }
 
@@ -413,7 +420,7 @@ func (b *builder) result() {
 	var ranked, snap *Result
 	if r := b.ranked; r != nil {
 		if r.Winner == 1 || r.Winner == 2 {
-			ranked = &Result{Winner: r.Winner, Frame: b.rankedAt, Source: SourceRanked}
+			ranked = &Result{Winner: r.Winner, Frame: b.rankedAt, Source: SourceRanked, Rating: new(r.Rating)}
 		} else {
 			b.warnf("ranked result at frame %d names side %d", b.rankedAt, r.Winner)
 		}

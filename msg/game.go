@@ -24,6 +24,7 @@ type Result struct {
 	Winner  uint32 `json:"winner"`          // winning side
 	Team    int32  `json:"team"`            // the recording client's team
 	SteamID uint64 `json:"steam_id,string"` // the recording client's SteamID
+	Rating  uint32 `json:"rating"`          // its leaderboard rating after the match
 }
 
 // MsgType returns TypeResult.
@@ -81,7 +82,7 @@ func registerGame(r *Registry, v uint32) {
 		if b.u64(40) != id && b.err == nil {
 			b.err = errors.New("the SteamIDs at offsets 32 and 40 differ")
 		}
-		return &Result{Input: in, Winner: b.u32(24), Team: b.i32(28), SteamID: id}
+		return &Result{Input: in, Winner: b.u32(24), Team: b.i32(28), SteamID: id, Rating: b.u32(64)}
 	}))
 	register(r, v, TypeScreenshot, decodeScreenshot)
 }
