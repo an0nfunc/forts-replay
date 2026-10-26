@@ -41,7 +41,7 @@ A str8 is a u32 byte count followed by that many bytes, with no terminator; a st
 | 44 | u32 | Number of screenshot records |
 | 48 | 200 × u32 | Indices of the blocks holding them |
 
-Every later fixed offset is the 1383 one plus 0x16: the ranked flag at 0x350, the save-name at 0x351, the u8 at 0x391, the number array at 0x392, the commander names at 0x522 and the options at 0x586. Whether a ranked header still has 128 more bytes after the flag is not known; the parser assumes so. From the map files on, the layout is that of 1383.
+Every later fixed offset is the 1383 one plus 0x16: the ranked flag at 0x350, the save-name at 0x351, the u8 at 0x391, the number array at 0x392, the commander names at 0x522 and the options at 0x586. A ranked header has the same 128 more bytes after the flag. From the map files on, the layout is that of 1383.
 
 After the map files:
 
@@ -134,12 +134,13 @@ Payloads start with the type byte, then 16 bytes that are zero in single-player 
 | 0xbb | 85 | Ranked result, see "Ranked result" |
 | 0xe2 | about 2.4 MB | Screenshot, see "Screenshots" |
 
-**Version 1390** moves record types: the input records and chat (0x92 to 0x9a) by 3, and every type from the tick (0xbe) to the script call (0xe6) by 4. Lengths, byte 17 and payload layouts stay. The new types overlap old ones, so a decoder picks the table by header version. This document names types by their 1383 IDs.
+**Version 1390** moves record types: the input records and chat (0x92 to 0x9a) by 3, and the ranked result and every type from the tick (0xbe) to the script call (0xe6) by 4. Lengths, byte 17 and payload layouts stay. The new types overlap old ones, so a decoder picks the table by header version. This document names types by their 1383 IDs.
 
 | 1383 | 1390 | Records |
 |---|---|---|
 | 0x92 to 0x97 | 0x95 to 0x9a | Input state |
 | 0x9a | 0x9d | Chat |
+| 0xbb | 0xbf | Ranked result |
 | 0xbe, 0xc0 | 0xc2, 0xc4 | Tick, sync |
 | 0xc5 to 0xe0 | 0xc9 to 0xe4 | Commands, 0xc8 and 0xc9 |
 | 0xe1 | 0xe5 | Snapshot |
@@ -147,7 +148,7 @@ Payloads start with the type byte, then 16 bytes that are zero in single-player 
 | 0xe3 | 0xe7 | Not decoded |
 | 0xe6 | 0xea | Script call |
 
-No 1390 sample holds the 1383 types 0xc9, 0xcf, 0xd0, 0xdc or 0xe3 yet; the parser decodes 0xcf, 0xd0 and 0xdc at 0xd3, 0xd4 and 0xe0 by the same rule. 0xb8, 0xba and the ranked result 0xbb lie between the two ranges, and their 1390 types are not known. 0x8d keeps its type (candidate), and 0x8f to 0x91 hold other layouts (see "Records not decoded").
+No 1390 sample holds the 1383 types 0xc9, 0xcf, 0xd0, 0xdc or 0xe3 yet; the parser decodes 0xcf, 0xd0 and 0xdc at 0xd3, 0xd4 and 0xe0 by the same rule. 0xb8 and 0xba lie between the two ranges. Candidate: 0xb8 moved to 0xbc, which a ranked 1390 sample holds once near the end, with 29 bytes. The 1390 type of 0xba is not known. 0x8d keeps its type (candidate), and 0x8f to 0x91 hold other layouts (see "Records not decoded").
 
 ## Ticks and syncs (types 0xbe and 0xc0)
 
@@ -311,7 +312,7 @@ These types stay raw (`msg.Raw`). Counts are from 103 v1.38.2 replays: 38 multip
 
 The game writes it when a ranked match ends, 8 to 128 frames after the last snapshot before the end. One sample also holds the other client's record, two frames apart. Other games have none.
 
-In version 1390 its type is not known: 0xbb lies between the ranges that moved by 3 and by 4, so 0xbe and 0xbf are the candidates, and no sample holds either with this layout. The parser leaves the record undecoded and warns for a ranked 1390 replay; the result then comes from the snapshots.
+In version 1390 its type is 0xbf, moved by 4, with the same layout.
 
 | Offset | Type | Meaning |
 |---|---|---|

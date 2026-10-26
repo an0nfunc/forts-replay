@@ -57,14 +57,13 @@ func TestResult(t *testing.T) {
 	if DefaultRegistry().Lookup(TypeResult, 1384) != nil {
 		t.Error("decoder at version 1384")
 	}
-	// The 1390 type is not known: no candidate decodes the 1383 layout.
-	for _, typ := range []byte{TypeResult, 0xbe, 0xbf} {
-		if fn := DefaultRegistry().Lookup(typ, 1390); fn != nil {
-			p := result(0, 2, 102, id, id)
-			p[0], p[17] = typ, typ
-			m, err := fn(p)
-			t.Errorf("version 1390, type %#02x: %#v, %v", typ, m, err)
-		}
+	// Version 1390 writes the same layout as type 0xbf.
+	p := result(0, 2, 102, id, id)
+	p[0], p[17] = 0xbf, 0xbf
+	if fn := DefaultRegistry().Lookup(0xbf, 1390); fn == nil {
+		t.Error("no decoder for 0xbf in version 1390")
+	} else if m, err := fn(p); err != nil || !reflect.DeepEqual(m, &Result{Winner: 2, Team: 102, SteamID: id}) {
+		t.Errorf("version 1390: %#v, %v", m, err)
 	}
 }
 
