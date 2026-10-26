@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/an0nfunc/forts-replay/compare/v0.4.0...v0.5.0) (2026-10-26)
+
+
+### Features
+
+* **msg:** decode the ranked result of version 1390 ([668ab62](https://github.com/an0nfunc/forts-replay/commit/668ab621a936de3ceea59b921c996f3c07c37aeb))
+
 ## [0.4.0](https://github.com/an0nfunc/forts-replay/compare/v0.3.1...v0.4.0) (2026-10-25)
 
 
