@@ -41,7 +41,7 @@ A str8 is a u32 byte count followed by that many bytes, with no terminator; a st
 | 44 | u32 | Number of screenshot records |
 | 48 | 200 × u32 | Indices of the blocks holding them |
 
-Every later fixed offset is the 1383 one plus 0x16: the ranked flag at 0x350, the save-name at 0x351, the u8 at 0x391, the number array at 0x392, the commander names at 0x522 and the options at 0x586. A ranked header has the same 128 more bytes after the flag. From the map files on, the layout is that of 1383.
+Every later fixed offset is the 1383 one plus 0x16: the ranked flag at 0x350, the save-name at 0x351, the u8 at 0x391, the number array at 0x392, the commander names at 0x522 and the options at 0x586. A ranked header has the same 128 bytes after the flag. From the map files on, the layout is that of 1383.
 
 After the map files:
 
@@ -148,7 +148,7 @@ Payloads start with the type byte, then 16 bytes that are zero in single-player 
 | 0xe3 | 0xe7 | Not decoded |
 | 0xe6 | 0xea | Script call |
 
-No 1390 sample holds the 1383 types 0xc9, 0xcf, 0xd0, 0xdc or 0xe3 yet; the parser decodes 0xcf, 0xd0 and 0xdc at 0xd3, 0xd4 and 0xe0 by the same rule. 0xb8 and 0xba lie between the two ranges. Candidate: 0xb8 moved to 0xbc, which a ranked 1390 sample holds once near the end, with 29 bytes. The 1390 type of 0xba is not known. 0x8d keeps its type (candidate), and 0x8f to 0x91 hold other layouts (see "Records not decoded").
+No 1390 sample holds the 1383 types 0xc9, 0xcf, 0xd0, 0xdc or 0xe3 yet; the parser decodes 0xcf, 0xd0 and 0xdc at 0xd3, 0xd4 and 0xe0 by the same rule. 0xb8 and 0xba lie between the two ranges, and their 1390 types are not known. Candidate: 0xb8 moved to 0xbc, which a ranked 1390 sample holds once near the end, with 29 bytes. 0x8d keeps its type (candidate), and 0x8f to 0x91 hold other layouts (see "Records not decoded").
 
 ## Ticks and syncs (types 0xbe and 0xc0)
 
