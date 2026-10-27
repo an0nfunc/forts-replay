@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/an0nfunc/forts-replay/compare/v0.5.0...v0.6.0) (2026-10-27)
+
+
+### Features
+
+* **match:** give the recording player's rating with a ranked result ([2ef038a](https://github.com/an0nfunc/forts-replay/commit/2ef038ada10d175bdcf0a632760f0ba1e88eafc6))
+
 ## [0.5.0](https://github.com/an0nfunc/forts-replay/compare/v0.4.0...v0.5.0) (2026-10-26)
 
 
