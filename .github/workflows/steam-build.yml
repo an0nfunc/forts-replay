@@ -14,7 +14,8 @@ jobs:
   # all it can hand on is the digits the next step parses from its output.
   read:
     if: github.repository == 'an0nfunc/forts-replay'
-    runs-on: ubuntu-latest
+    # Docker 29.4.2 on ubuntu-26.04 runners breaks steamcmd (moby/moby#52506).
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions: {}
     outputs:
